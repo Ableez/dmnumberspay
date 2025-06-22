@@ -1,11 +1,10 @@
 import "#/styles/globals.css";
 
-import { ClerkProvider } from "@clerk/nextjs";
-
 import { type Metadata } from "next";
 import { Geist } from "next/font/google";
 import { TRPCReactProvider } from "../trpc/react";
 import { ThemeProvider } from "#/components/theme-provider";
+import { ConvexClientProvider } from "../lib/convex-client-provider";
 
 export const metadata: Metadata = {
   title: "NumbersPay",
@@ -25,22 +24,20 @@ type RootLayoutProps = Readonly<{
 }>;
 
 const RootLayout: React.FC<RootLayoutProps> = ({ children }) => (
-  <ClerkProvider>
-    <html lang="en" className={geist.variable}>
-      <body>
-        <TRPCReactProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem={false}
-            forcedTheme="dark"
-          >
-            {children}
-          </ThemeProvider>
-        </TRPCReactProvider>
-      </body>
-    </html>
-  </ClerkProvider>
+  <html lang="en" className={geist.variable} suppressHydrationWarning>
+    <body>
+      <TRPCReactProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
+          forcedTheme="dark"
+        >
+          <ConvexClientProvider>{children}</ConvexClientProvider>
+        </ThemeProvider>
+      </TRPCReactProvider>
+    </body>
+  </html>
 );
 
 export default RootLayout;
