@@ -2,7 +2,20 @@
   "name": "dmnumberspay",
   "version": "0.1.0",
   "private": true,
+  "scripts": {
+    "dev": "bun run --concurrency frontend:dev convex:dev",
+    "frontend:dev": "cd frontend && bun run dev",
+    "convex:dev": "cd frontend && bun convex dev",
+    "build": "cd frontend && bun run build",
+    "start": "cd frontend && bun run start",
+    "start:all": "chmod +x run.sh && ./run.sh",
+    "start:db": "chmod +x run.sh && ./run.sh --db-only",
+    "backend": "chmod +x run.sh && ./run.sh --backend",
+    "frontend": "chmod +x run.sh && ./run.sh --frontend",
+    "start:clean": "chmod +x run.sh && ./run.sh --clean"
+  },
   "dependencies": {
+    "@tabler/icons-react": "^3.34.0",
     "convex": "^1.24.8"
   }
 }
