@@ -2,6 +2,8 @@ import ShowBalance from "#/components/home/balance";
 import QuickActions from "#/components/home/quick-actions";
 import ListWithFilter from "#/components/transactions/list-with-filter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "#/components/ui/tabs";
+import * as Client from "../../../packages/numberspay_wallet"
+
 
 const Home = () => {
   return (

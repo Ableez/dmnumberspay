@@ -45,3 +45,13 @@ yarn-error.log*
 # idea files
 .idea
 .vercel
+
+
+
+# contracts
+# Rust's output directory
+target
+
+# Local settings
+.soroban
+.stellar

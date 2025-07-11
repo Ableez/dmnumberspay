@@ -1,6 +1,16 @@
+#![no_std]
+
+use core::{
+    convert::{From, Into},
+    marker::Copy,
+    result::Result::{self, Ok, Err},
+    option::Option::{self, Some},
+};
+
 use soroban_sdk::{
     contract, contractimpl, contracttype, symbol_short,
-    Address, Env, Symbol, Vec, Map, BytesN, Bytes, Hash,
+    Address, Env, Symbol, Vec, Map, BytesN, Bytes, String,
+    crypto::Hash, Error as SdkError, TryFromVal,
 };
 
 // Constants
@@ -34,21 +44,6 @@ pub enum DataKey {
     WalletRegistry,
 }
 
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Error {
-    NotAuthorized = 1,
-    InsufficientBalance = 2,
-    InvalidAmount = 3,
-    WalletNotFound = 4,
-    TokenNotSupported = 5,
-    AlreadyInitialized = 6,
-    AuthenticationFailed = 7,
-    NotPermitted = 8,
-    ClientDataJsonChallengeIncorrect = 9,
-    JsonParseError = 10,
-}
-
 pub trait TokenInterface {
     fn transfer(env: Env, from: Address, to: Address, amount: i128);
     fn balance(env: Env, id: Address) -> i128;
@@ -64,9 +59,9 @@ impl PasskeyWalletTransfer {
         env: Env,
         owner: Address,
         supported_tokens: Vec<TokenInfo>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), SdkError> {
         if env.storage().instance().has(&DataKey::Owner) {
-            return Err(Error::AlreadyInitialized);
+            return Err(SdkError::from_contract_error(6)); // AlreadyInitialized
         }
 
         owner.require_auth();
@@ -85,7 +80,7 @@ impl PasskeyWalletTransfer {
     }
 
     // Register a new wallet in the system
-    pub fn register_wallet(env: Env, wallet_address: Address) -> Result<(), Error> {
+    pub fn register_wallet(env: Env, wallet_address: Address) -> Result<(), SdkError> {
         env.current_contract_address().require_auth();
         
         let mut registry: Map<Address, Map<Address, i128>> = 
@@ -110,9 +105,9 @@ impl PasskeyWalletTransfer {
         to_wallet: Address,
         token: Address,
         amount: i128,
-    ) -> Result<(), Error> {
+    ) -> Result<(), SdkError> {
         if amount <= 0 {
-            return Err(Error::InvalidAmount);
+            return Err(SdkError::from_contract_error(3)); // InvalidAmount
         }
         
         // Require auth from the sending wallet
@@ -127,7 +122,7 @@ impl PasskeyWalletTransfer {
         
         // Check if both wallets exist
         if !registry.contains_key(from_wallet.clone()) || !registry.contains_key(to_wallet.clone()) {
-            return Err(Error::WalletNotFound);
+            return Err(SdkError::from_contract_error(7)); // WalletNotFound
         }
         
         // Get wallet balances
@@ -137,7 +132,7 @@ impl PasskeyWalletTransfer {
         // Check sender's balance
         let from_balance = from_balances.get(token.clone()).unwrap_or(0);
         if from_balance < amount {
-            return Err(Error::InsufficientBalance);
+            return Err(SdkError::from_contract_error(8)); // InsufficientBalance
         }
         
         // Update balances
@@ -166,7 +161,7 @@ impl PasskeyWalletTransfer {
     }
     
     // Add a key to a wallet
-    pub fn add(env: Env, id: Bytes, pk: BytesN<65>, admin: bool) -> Result<(), Error> {
+    pub fn add(env: Env, id: Bytes, pk: BytesN<65>, admin: bool) -> Result<(), SdkError> {
         if env.storage().instance().has(&ADMIN_SIGNER_COUNT) {
             env.current_contract_address().require_auth();   
         } else {
@@ -213,7 +208,7 @@ impl PasskeyWalletTransfer {
     }
 
     // Remove a key from a wallet
-    pub fn remove(env: Env, id: Bytes) -> Result<(), Error> {
+    pub fn remove(env: Env, id: Bytes) -> Result<(), SdkError> {
         env.current_contract_address().require_auth();
 
         if env.storage().temporary().has(&id) {
@@ -221,12 +216,12 @@ impl PasskeyWalletTransfer {
         } else if env.storage().persistent().has(&id) {
             let admin_count: u32 = env.storage().instance().get(&ADMIN_SIGNER_COUNT).unwrap();
             if admin_count <= 1 {
-                return Err(Error::NotAuthorized); // Can't remove last admin key
+                return Err(SdkError::from_contract_error(9)); // Can't remove last admin key
             }
             env.storage().instance().set(&ADMIN_SIGNER_COUNT, &(admin_count - 1));
             env.storage().persistent().remove(&id);
         } else {
-            return Err(Error::NotAuthorized);
+            return Err(SdkError::from_contract_error(10)); // NotAuthorized
         }
 
         let max_ttl = env.storage().max_ttl();
@@ -242,7 +237,7 @@ impl PasskeyWalletTransfer {
         signature_payload: Hash<32>,
         signature: Signature,
         auth_contexts: Vec<soroban_sdk::auth::Context>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), SdkError> {
         let id = signature.id.clone();
         let max_ttl = env.storage().max_ttl();
         
@@ -251,82 +246,53 @@ impl PasskeyWalletTransfer {
             Some(pk) => {
                 // Session keys can only sign certain operations
                 for context in auth_contexts.iter() {
-                    match context {
-                        soroban_sdk::auth::Context::Contract(c) => {
-                            if c.contract == env.current_contract_address()
-                                && (
-                                    c.fn_name != symbol_short!("remove")
-                                    || (
-                                        c.fn_name == symbol_short!("remove") 
-                                        && Bytes::from_val(&env, &c.args.get(0).unwrap()) != id
-                                    )
-                                )
-                            {
-                                return Err(Error::NotPermitted);
-                            }
+                    if let soroban_sdk::auth::Context::Contract(c) = context {
+                        if c.contract == env.current_contract_address()
+                        && (
+                            c.fn_name != symbol_short!("remove")
+                            || (
+                                c.fn_name == symbol_short!("remove") 
+                                && id != Bytes::try_from_val(&env, &c.args.get(0).unwrap_or_default()).unwrap_or(Bytes::new(&env))
+                            )
+                        )
+                    {
+                        return Err(SdkError::from_contract_error(11)); // NotPermitted
                         }
-                        _ => {}
-                    };
+                    }
                 }
-                
                 env.storage().temporary().extend_ttl(&id, max_ttl - WEEK_OF_LEDGERS, max_ttl);
                 pk
             }
             None => {
                 env.storage().persistent().extend_ttl(&id, max_ttl - WEEK_OF_LEDGERS, max_ttl);
-                env.storage().persistent().get(&id).ok_or(Error::NotAuthorized)?
+                env.storage().persistent().get(&id).ok_or(SdkError::from_contract_error(12))?
             }
         };
-        
-        // Verify WebAuthn signature (implementation details omitted for brevity)
-        // In a real implementation, this would validate the client_data_json,
-        // authenticator_data, and verify the signature against the public key
-        
+        // TODO: Add actual signature verification logic here
         Ok(())
     }
 
-    // Helper: Get wallet balance
-    pub fn get_balance(env: Env, wallet: Address, token: Address) -> Result<i128, Error> {
+    // Helper: Get wallet balancesupported
+    pub fn get_balance(env: Env, wallet: Address, token: Address) -> Result<i128, SdkError> {
         Self::require_supported_token(&env, &token)?;
-        
         let registry: Map<Address, Map<Address, i128>> = 
             env.storage().instance().get(&DataKey::WalletRegistry).unwrap();
-            
         if !registry.contains_key(wallet.clone()) {
-            return Err(Error::WalletNotFound);
+            return Err(SdkError::from_contract_error(7)); // WalletNotFound
         }
-        
         let balances = registry.get(wallet).unwrap();
         Ok(balances.get(token).unwrap_or(0))
     }
-
-    // Helper: Check if token is supported
-    fn require_supported_token(env: &Env, token: &Address) -> Result<(), Error> {
+    // Helper: Get supported tokens
+    // Helper: Check if token is supported-> Vec<TokenInfo> {
+    fn require_supported_token(env: &Env, token: &Address) -> Result<(), SdkError> {
         let supported_tokens: Vec<TokenInfo> = 
             env.storage().instance().get(&DataKey::Tokens).unwrap_or(Vec::new(env));
-        
         for supported_token in supported_tokens.iter() {
             if supported_token.address == *token {
                 return Ok(());
             }
         }
-        
-        Err(Error::TokenNotSupported)
-    }
-
-    // Helper: Get supported tokens
-    pub fn get_supported_tokens(env: Env) -> Vec<TokenInfo> {
-        env.storage().instance().get(&DataKey::Tokens).unwrap_or(Vec::new(&env))
-    }
-    
-    // Allow contract upgrade (admin only)
-    pub fn upgrade(env: Env, hash: BytesN<32>) -> Result<(), Error> {
-        env.current_contract_address().require_auth();
-        env.deployer().update_current_contract_wasm(hash);
-        
-        let max_ttl = env.storage().max_ttl();
-        env.storage().instance().extend_ttl(max_ttl - WEEK_OF_LEDGERS, max_ttl);
-        
-        Ok(())
+        Err(SdkError::from_contract_error(4)) // TokenNotSupported
     }
 }
