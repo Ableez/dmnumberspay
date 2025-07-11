@@ -5,6 +5,13 @@
 /.pnp
 .pnp.js
 
+# testing
+/coverage
+
+# database
+/prisma/db.sqlite
+/prisma/db.sqlite-journal
+db.sqlite
 
 # next.js
 /.next/
@@ -37,3 +44,4 @@ yarn-error.log*
 
 # idea files
 .idea
+.vercel
