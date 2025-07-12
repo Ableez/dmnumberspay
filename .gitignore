@@ -51,7 +51,3 @@ yarn-error.log*
 # contracts
 # Rust's output directory
 target
-
-# Local settings
-.soroban
-.stellar
