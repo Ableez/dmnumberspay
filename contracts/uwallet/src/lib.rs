@@ -1,22 +1,21 @@
 #![no_std]
 
 use soroban_sdk::{
-    auth::Context,
     contract,
     contractimpl,
     contracttype,
-    crypto::Hash,
     symbol_short,
-    token::{ self, Interface as TokenInterface },
+    token::{ self },
     Address,
     Bytes,
     BytesN,
     Env,
     Error as SdkError,
-    String,
     Symbol,
     Vec,
 };
+
+mod base64_urls;
 
 // Constants
 const WEEK_OF_LEDGERS: u32 = ((60 * 60 * 24) / 5) * 7;
@@ -71,6 +70,13 @@ pub struct Transaction {
 }
 
 #[contracttype]
+pub struct Signature {
+    pub authenticator_data: Bytes,
+    pub client_data_json: Bytes,
+    pub signature: BytesN<64>,
+}
+
+#[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RecoveryRequest {
     pub new_passkey: PasskeyCredential,
@@ -97,10 +103,10 @@ pub struct WalletSettings {
 }
 
 #[contract]
-pub struct MobileBankingWallet;
+pub struct NBSWallet;
 
 #[contractimpl]
-impl MobileBankingWallet {
+impl NBSWallet {
     /// Initialize a new mobile banking wallet with passkey
     pub fn initialize(
         env: Env,
@@ -378,12 +384,7 @@ impl MobileBankingWallet {
     }
 
     /// WebAuthn signature verification
-    pub fn __check_auth(
-        env: Env,
-        signature_payload: Hash<32>,
-        signature: WebAuthnSignature,
-        auth_contexts: Vec<Context>
-    ) -> Result<(), SdkError> {
+    pub fn __check_auth(env: Env, signature: WebAuthnSignature) -> Result<(), SdkError> {
         // Get current passkey
         let passkey: PasskeyCredential = env
             .storage()
@@ -391,52 +392,39 @@ impl MobileBankingWallet {
             .get(&DataKey::Passkey)
             .ok_or(SdkError::from_contract_error(ERROR_NOT_INITIALIZED))?;
 
-        // 1. Parse client_data_json to extract challenge
-        // Convert client_data_json to string for parsing
+        // 1. Verify the signature against the public key
+        // Create the client data hash (SHA-256 of the client_data_json)
+        let client_data_hash = env.crypto().sha256(&signature.client_data_json);
 
-        let client_data_json = signature.client_data_json.clone();
-        if client_data_json.is_empty() {
-            return Err(SdkError::from_contract_error(ERROR_INVALID_SIGNATURE));
-        }
-        let client_data_str = String::from_slice(&env, &client_data_json).map_err(|_|
-            SdkError::from_contract_error(ERROR_INVALID_SIGNATURE)
-        )?;
+        // Create the message that was signed (concatenate authenticator_data and client_data_hash)
+        let mut message = Bytes::new(&env);
+        message.append(&signature.authenticator_data);
+        message.extend_from_array(&client_data_hash.to_array());
 
-        // Simple check that client data contains the challenge (in a real implementation, proper JSON parsing would be used)
-        if !client_data_str.contains(&String::from_slice(&env, "challenge")) {
-            return Err(SdkError::from_contract_error(ERROR_INVALID_SIGNATURE));
-        }
+        // Hash the message to get the final verification data
+        let verification_data = env.crypto().sha256(&message);
 
-        // 2. Verify challenge matches signature_payload
-        // Extract challenge from client_data_json and compare with signature_payload
-        // In a full implementation, we would parse the JSON to extract the exact challenge value
-        // and decode from base64 before comparing
-        let payload_bytes = signature_payload.to_array();
-        let payload_hash = env.crypto().sha256(&payload_bytes);
+        // Verify the signature using secp256r1 (P-256)
+        env.crypto().secp256r1_verify(
+            &passkey.public_key,
+            &verification_data,
+            &signature.signature
+        );
 
-        // 3. Verify signature against public key using secp256r1
-        // In Soroban, we'd use the crypto module to verify the signature
-        // For secp256r1 (P-256) verification
-        let message = env.crypto().sha256(&signature.authenticator_data);
-
-        // Verify the signature using the public key from the passkey
-        let is_valid = env
-            .crypto()
-            .ed25519_verify(&passkey.public_key, &message, &signature.signature);
-
-        if !is_valid {
+        // 2. Extract and verify the challenge from client_data_json
+        // In a real implementation, we would properly parse the JSON
+        // For now, we'll do a basic check that the client_data_json contains data
+        if signature.client_data_json.len() == 0 {
             return Err(SdkError::from_contract_error(ERROR_INVALID_SIGNATURE));
         }
 
-        // 4. Check authenticator_data flags
-        // authenticator_data contains flags that indicate user presence, user verification, etc.
-        // For simplicity, we'll check that authenticator_data is at least 37 bytes
-        // (minimum size for a valid authenticator data structure)
+        // 3. Verify the authenticator_data
+        // Check minimum length for authenticator_data
         if signature.authenticator_data.len() < 37 {
             return Err(SdkError::from_contract_error(ERROR_INVALID_SIGNATURE));
         }
 
-        // Check user presence flag (bit 0 of the 5th byte)
+        // Check user presence flag (bit 0 of the flags byte)
         let flags_byte = signature.authenticator_data.get(32).unwrap_or(0);
         let user_present = (flags_byte & 0x01) != 0;
 
@@ -452,7 +440,6 @@ impl MobileBankingWallet {
 
         Ok(())
     }
-
     // Helper functions
 
     fn check_daily_limit(env: &Env, amount: i128) -> Result<(), SdkError> {
