@@ -2,7 +2,7 @@ import ShowBalance from "#/components/home/balance";
 import QuickActions from "#/components/home/quick-actions";
 import ListWithFilter from "#/components/transactions/list-with-filter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "#/components/ui/tabs";
-import * as Client from "../../../packages/numberspay_wallet";
+import * as Client from "../../../packages/numberspay_uwallet";
 
 const wallet = new Client.Client({
   ...Client.networks.testnet,
@@ -10,30 +10,6 @@ const wallet = new Client.Client({
 });
 
 const Home = () => {
-  wallet.initialize({
-    supported_tokens: [
-      {
-        address: "GDU5Q6Z3V75Q6Z3V75Q6Z3V75Q6Z3V75Q6Z3V75Q6Z3V75Q6Z3V75Q6Z3V75",
-        symbol: "ETH",
-        decimals: 18,
-      },
-      {
-        address: "GDU5Q6Z3V75Q6Z3V75Q6Z3V75Q6Z3V75Q6Z3V75Q6Z3V75Q6Z3V75Q6Z3V76",
-        symbol: "USDC",
-        decimals: 6,
-      },
-      {
-        address: "GDU5Q6Z3V75Q6Z3V75Q6Z3V75Q6Z3V75Q6Z3V75Q6Z3V75Q6Z3V75Q6Z3V77",
-        symbol: "BTC",
-        decimals: 8,
-      },
-    ],
-
-    wallet_name: "NumbersPay",
-    wallet_icon: "https://example.com/icon.png",
-    wallet_description:
-      "A simple wallet for managing your assets on the Stellar network.",
-  });
   return (
     <div className="min-h-screen place-items-center justify-center bg-gradient-to-b from-[#410D8C] via-black to-black">
       <ShowBalance />
