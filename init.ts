@@ -1,56 +1,37 @@
-import {
-  Soroban,
-  TransactionBuilder,
-  Networks,
-  Keypair,
-} from "@stellar/stellar-sdk";
+const crypto = require("crypto");
 
-async function initializeSmartWalletContract() {
-  // 1. Connect to the deployed contract
-  const contractId = "C..."; // Your deployed contract ID
-  const client = new Client({
-    contractId,
-    networkPassphrase: networks.testnet.networkPassphrase,
-    rpcUrl: "https://soroban-testnet.stellar.org",
-  });
+// Generate random passkey ID (32 bytes)
+const passkeyId = crypto.randomBytes(32);
+const passkeyIdBase64 = passkeyId.toString("base64url");
+const passkeyIdHex = passkeyId.toString("hex");
 
-  // 2. Define admin address (Stellar account that will control the contract)
-  const adminKeypair = Keypair.random(); // Or load your admin keypair
-  const adminAddress = adminKeypair.publicKey();
+// Generate secp256r1 (P-256) key pair
+const { publicKey } = crypto.generateKeyPairSync("ec", {
+  namedCurve: "P-256",
+  publicKeyEncoding: {
+    type: "spki",
+    format: "der",
+  },
+});
 
-  // 3. Define supported tokens
-  const supportedTokens = [
-    {
-      address: "CDLPG5KAPBVLF5YRPAFCLQMAY5VKQXPBFAYDHPZBDQLZR6CRDZBMDPYL", // Example USDC token contract
-      symbol: "USDC",
-      decimals: 6,
-    },
-    {
-      address: "CBBNMYKNV4NKRHY23XRZS253HTM4TF7YA6ZJ2XB7QZNB6XGK4DPXNVTA", // Example XLM token contract
-      symbol: "XLM",
-      decimals: 7,
-    },
-  ];
+// Extract the raw 65-byte public key (04 || x || y)
+const rawPubKey = publicKey.slice(-65).toString("hex");
 
-  // 4. Initialize the contract
-  const initTx = await client.initialize({
-    owner: adminAddress,
-    supported_tokens: supportedTokens,
-  });
+console.log("Passkey ID (hex):", passkeyIdHex);
+console.log("Passkey ID (base64url for reference):", passkeyIdBase64);
+console.log("Public Key (hex):", rawPubKey);
 
-  // 5. Sign with the admin key
-  const signedTx = await initTx
-    .setNetworkPassphrase(networks.testnet.networkPassphrase)
-    .sign(adminKeypair);
+// Generate Soroban CLI command
+console.log("\nSoroban CLI command:");
+console.log(`stellar contract invoke \\
+  --id CD3Z5C3PAF4IUYTKYYI2CB6VGQARX4B244EL7KWIRK5CHR6ODG55WDGA \\
+  --source ableez \\
+  --network testnet \\
+  -- initialize \\
+  --passkey_id ${passkeyIdHex} \\
+  --public_key ${rawPubKey}`);
 
-  // 6. Submit the transaction
-  const result = await signedTx.send();
-  console.log("Contract initialized:", result);
 
-  return {
-    adminAddress,
-    contractId,
-  };
-}
 
-initializeSmartWalletContract().catch(console.error);
+
+  // wallet 1 CD3Z5C3PAF4IUYTKYYI2CB6VGQARX4B244EL7KWIRK5CHR6ODG55WDGA
