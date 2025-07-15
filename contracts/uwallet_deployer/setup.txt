@@ -1,0 +1,62 @@
+codespace:/workspaces/dmnumberspay> stellar contract build
+ℹ️  CARGO_BUILD_RUSTFLAGS=--remap-path-prefix=/home/codespace/.cargo/registry/src= cargo rustc --manifest-path=contracts/uwallet/Cargo.toml --crate-type=cdylib --target=wasm32v1-none --release
+   Compiling numberspay-uwallet v0.0.0 (/workspaces/dmnumberspay/contracts/uwallet)
+warning: constant `ALPHABET` is never used
+  --> contracts/uwallet/src/base64_urls.rs:38:7
+   |
+38 | const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+   |       ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `encode` is never used
+  --> contracts/uwallet/src/base64_urls.rs:40:8
+   |
+40 | pub fn encode(dst: &mut [u8], src: &[u8]) {
+   |        ^^^^^^
+
+warning: `numberspay-uwallet` (lib) generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 7.80s
+ℹ️  Build Summary:
+   Wasm File: target/wasm32v1-none/release/numberspay_uwallet.wasm
+   Wasm Hash: b67b4167cc103da0aa9e7cbc7ac4d4497c9a80ca3a724b555c11870b8b74e963
+   Exported Functions: 12 found
+     • _
+     • __check_auth
+     • balance
+     • complete_recovery
+     • deposit
+     • get_daily_spending
+     • get_transaction_history
+     • initialize
+     • initiate_recovery
+     • send
+     • update_passkey
+     • withdraw
+✅ Build Complete
+codespace:/workspaces/dmnumberspay> stellar contract optimize --wasm target/wasm32v1-none/release/numberspa
+y_uwallet.wasm
+Reading: target/wasm32v1-none/release/numberspay_uwallet.wasm (10746 bytes)
+Optimized: target/wasm32v1-none/release/numberspay_uwallet.optimized.wasm (9077 bytes)
+codespace:/workspaces/dmnumberspay> stellar contract optimize --wasm target/wasm32v1-none/release/numberspa
+y_uwallet.wasm
+Reading: target/wasm32v1-none/release/numberspay_uwallet.wasm (10746 bytes)
+Optimized: target/wasm32v1-none/release/numberspay_uwallet.optimized.wasm (9077 bytes)
+codespace:/workspaces/dmnumberspay> stellar contract deploy \
+                                          --wasm target/wasm32v1-none/release/numberspay_uwallet.wasm \
+                                          --source ableez \
+                                          --network testnet \
+                                          --alias numberspay_uwallet
+ℹ️  Simulating install transaction…
+ℹ️  Signing transaction: e826d121d771d69aca8a6a8db7f9bdfa1a0eb64f21db3486929ce80918fbf180
+🌎 Submitting install transaction…
+ℹ️  Using wasm hash b67b4167cc103da0aa9e7cbc7ac4d4497c9a80ca3a724b555c11870b8b74e963
+ℹ️  Simulating deploy transaction…
+ℹ️  Transaction hash is f340e4d84bb676ff25652c6ce489ec9bc47a47324cfaf737db8f5172d79e3074
+🔗 https://stellar.expert/explorer/testnet/tx/f340e4d84bb676ff25652c6ce489ec9bc47a47324cfaf737db8f5172d79e3074
+ℹ️  Signing transaction: f340e4d84bb676ff25652c6ce489ec9bc47a47324cfaf737db8f5172d79e3074
+🌎 Submitting deploy transaction…
+🔗 https://stellar.expert/explorer/testnet/contract/CD3Z5C3PAF4IUYTKYYI2CB6VGQARX4B244EL7KWIRK5CHR6ODG55WDGA
+✅ Deployed!
+CD3Z5C3PAF4IUYTKYYI2CB6VGQARX4B244EL7KWIRK5CHR6ODG55WDGA
+codespace:/workspaces/dmnumberspay> 
