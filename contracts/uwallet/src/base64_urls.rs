@@ -2,7 +2,7 @@
 //
 // Modifications:
 //    * Removed logic supporting padding.
-//    * Hardcoded the Base64 URL alphabet.
+//    * Hardcoded the Base64 URL alphabet.v
 //    * Use a fixed length pre-allocated destination.
 //    * Ported to Rust.
 //

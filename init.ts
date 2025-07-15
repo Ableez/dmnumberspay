@@ -1,37 +1,23 @@
-const crypto = require("crypto");
+import { writeFileSync } from "fs";
+// Example values
+const user_id = Buffer.from("user123456"); // 10 bytes
+const passkey_id = Buffer.from("passkeyid1234567890"); // 18 bytes
+const public_key = Buffer.alloc(65, 1); // 65 bytes, all 1s for demo
+const daily_limit = "1000000000"; // as string for big numbers
+const wallet_type = 0; // 0 = Standard, 1 = SavingsOnly, 2 = StableCoinsOnly, 3 = Custom
 
-// Generate random passkey ID (32 bytes)
-const passkeyId = crypto.randomBytes(32);
-const passkeyIdBase64 = passkeyId.toString("base64url");
-const passkeyIdHex = passkeyId.toString("hex");
+// If using Soroban JS SDK, you might call like this:
+const result = {
+  user_id: user_id.toString("base64"), // Buffer or Uint8Array
+  passkey_id: passkey_id.toString("base64"), // Buffer or Uint8Array
+  public_key: public_key.toString("base64"), // Buffer or Uint8Array (65 bytes)
+  daily_limit, // string or number, or undefined for None
+  wallet_type, // number (enum index)
+};
 
-// Generate secp256r1 (P-256) key pair
-const { publicKey } = crypto.generateKeyPairSync("ec", {
-  namedCurve: "P-256",
-  publicKeyEncoding: {
-    type: "spki",
-    format: "der",
-  },
-});
+// If using a raw XDR builder, convert as needed for your SDK.
 
-// Extract the raw 65-byte public key (04 || x || y)
-const rawPubKey = publicKey.slice(-65).toString("hex");
+console.log("RESULT", result);
 
-console.log("Passkey ID (hex):", passkeyIdHex);
-console.log("Passkey ID (base64url for reference):", passkeyIdBase64);
-console.log("Public Key (hex):", rawPubKey);
-
-// Generate Soroban CLI command
-console.log("\nSoroban CLI command:");
-console.log(`stellar contract invoke \\
-  --id CD3Z5C3PAF4IUYTKYYI2CB6VGQARX4B244EL7KWIRK5CHR6ODG55WDGA \\
-  --source ableez \\
-  --network testnet \\
-  -- initialize \\
-  --passkey_id ${passkeyIdHex} \\
-  --public_key ${rawPubKey}`);
-
-
-
-
-  // wallet 1 CD3Z5C3PAF4IUYTKYYI2CB6VGQARX4B244EL7KWIRK5CHR6ODG55WDGA
+// Write the result to a file
+writeFileSync("register_user_result.json", JSON.stringify(result, null, 2));

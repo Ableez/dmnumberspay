@@ -12,7 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "#/components/ui/select";
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { registerUser } from "#/server/actions/wallet";
 
 type Country = {
   name: string;
@@ -38,6 +39,7 @@ export function LoginForm({
     westAfricanCountries[0]!,
   );
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleCountrySelect = (countryCode: string) => {
     const country = westAfricanCountries.find((c) => c.code === countryCode);
@@ -46,9 +48,48 @@ export function LoginForm({
     }
   };
 
+  const handleSubmit = useCallback(
+    async (formData: FormData) => {
+      setIsLoading(true);
+      try {
+        // Add phone number to form data
+        formData.set("phone", `${selectedCountry.dialCode}${phoneNumber}`);
+
+        // Generate passkey credentials
+        const passkeyBuffer = crypto.getRandomValues(new Uint8Array(32));
+        const passkeyId = Array.from(passkeyBuffer)
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+
+        // Generate a mock public key (in production, this would be from WebAuthn)
+        const publicKeyBuffer = crypto.getRandomValues(new Uint8Array(65));
+        const publicKey = Array.from(publicKeyBuffer)
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+
+        // Add passkey credentials to form data
+        formData.set("passkeyId", passkeyId);
+        formData.set("publicKey", publicKey);
+
+        // Call the server action
+        const result = await registerUser(formData);
+
+        // Handle successful registration
+        console.log("Registration successful:", result);
+
+        // Redirect or update UI as needed
+      } catch (error) {
+        console.error("Registration failed:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [phoneNumber, selectedCountry],
+  );
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <form>
+      <form action={handleSubmit}>
         <div className="flex flex-col gap-8">
           <div className="flex flex-col items-center gap-6">
             <a
@@ -97,6 +138,7 @@ export function LoginForm({
                 </Select>
                 <Input
                   id="phone"
+                  name="phone"
                   type="tel"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
@@ -106,8 +148,8 @@ export function LoginForm({
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full">
-              Continue
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Processing..." : "Continue"}
             </Button>
           </div>
         </div>
