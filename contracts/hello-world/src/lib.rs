@@ -311,3 +311,5 @@ impl UserManager {
         user.primary_wallet.ok_or(SdkError::from_contract_error(ERROR_NOT_FOUND))
     }
 }
+
+// thats all folks! This is a simple user manager contract that allows you to register users, create wallets, and manage wallet types. It also includes basic error handling and event emissions for key actions.
