@@ -25,6 +25,7 @@ export default tseslint.config(
       rules: {
     "@typescript-eslint/array-type": "off",
     "@typescript-eslint/consistent-type-definitions": "off",
+    'drizzle/enforce-delete-with-where': "fase",
     "@typescript-eslint/consistent-type-imports": [
       "warn",
       { prefer: "type-imports", fixStyle: "inline-type-imports" },

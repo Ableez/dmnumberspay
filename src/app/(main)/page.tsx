@@ -2,12 +2,6 @@ import ShowBalance from "#/components/home/balance";
 import QuickActions from "#/components/home/quick-actions";
 import ListWithFilter from "#/components/transactions/list-with-filter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "#/components/ui/tabs";
-import * as Client from "../../../packages/numberspay_uwallet";
-
-const wallet = new Client.Client({
-  ...Client.networks.testnet,
-  rpcUrl: "https://soroban-testnet.stellar.org:443",
-});
 
 const Home = () => {
   return (
