@@ -2,10 +2,11 @@ import ShowBalance from "#/components/home/balance";
 import QuickActions from "#/components/home/quick-actions";
 import ListWithFilter from "#/components/transactions/list-with-filter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "#/components/ui/tabs";
+import { mockTransactions } from "./transactions/dummy-data";
 
 const Home = () => {
   return (
-    <div className="min-h-screen place-items-center justify-center bg-gradient-to-b from-[#410D8C] via-black to-black">
+    <div className="min-h-screen place-items-center justify-center bg-gradient-to-b from-indigo-600 via-transparent to-transparent">
       <ShowBalance />
       <QuickActions />
 
@@ -26,7 +27,7 @@ const Home = () => {
             </TabsTrigger>
           </TabsList>
           <TabsContent value="crypto">
-            <ListWithFilter />
+            <ListWithFilter mockTransactions={mockTransactions} />
           </TabsContent>
           <TabsContent value="nfts">
             <div className="flex h-32 items-center justify-center text-white/60">

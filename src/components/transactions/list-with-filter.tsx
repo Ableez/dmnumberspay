@@ -9,25 +9,16 @@ import {
   IconPlus,
   IconX,
 } from "@tabler/icons-react";
-
-interface Transaction {
-  id: number;
-  name: string;
-  symbol: string;
-  amount: string;
-  value: string;
-  type: "incoming" | "outgoing";
-  from: {
-    username: string;
-    accountNumber: string;
-    method: string;
-  };
-  date: string;
-  icon: string;
-}
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+import type {
+  TransactionType,
+  Transaction,
+} from "#/app/(main)/transactions/dummy-data";
+// import { mockTransactions } from "#/app/(main)/transactions/dummy-data";
 
 interface FilterState {
-  type: "all" | "incoming" | "outgoing";
+  type: "all" | TransactionType;
   currency: string[];
   dateRange: "all" | "today" | "week" | "month";
   amountRange: {
@@ -36,69 +27,26 @@ interface FilterState {
   };
 }
 
-const ListWithFilter = () => {
+const ListWithFilter = ({
+  mockTransactions,
+}: {
+  mockTransactions: Transaction[];
+}) => {
   const [filterState, setFilterState] = useState<FilterState>({
     type: "all",
     currency: [],
     dateRange: "all",
     amountRange: { min: 0, max: 1000 },
   });
+  const router = useRouter();
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  const transactionData: Transaction[] = useMemo(
-    () => [
-      {
-        id: 1,
-        name: "Bitcoin",
-        symbol: "BTC",
-        amount: "0.005 BTC",
-        value: "$320.45",
-        type: "incoming",
-        from: {
-          username: "Sarah Chen",
-          accountNumber: "+1 (555) 123-4567",
-          method: "transfer",
-        },
-        date: "Jun 12",
-        icon: "₿",
-      },
-      {
-        id: 2,
-        name: "Ethereum",
-        symbol: "ETH",
-        amount: "0.1 ETH",
-        value: "$230.78",
-        type: "outgoing",
-        from: {
-          username: "Binance Exchange",
-          accountNumber: "withdrawal",
-          method: "exchange",
-        },
-        date: "Jun 10",
-        icon: "Ξ",
-      },
-      {
-        id: 3,
-        name: "Tether",
-        symbol: "USDT",
-        amount: "100 USDT",
-        value: "$100.00",
-        type: "incoming",
-        from: {
-          username: "Michael Wong",
-          accountNumber: "+1 (555) 987-6543",
-          method: "payment",
-        },
-        date: "Jun 8",
-        icon: "₮",
-      },
-    ],
-    [],
-  );
+  // Use the imported mockTransactions instead of the hardcoded data
+  const transactionData = mockTransactions;
 
   const availableCurrencies = Array.from(
-    new Set(transactionData.map((t) => t.symbol)),
+    new Set(transactionData.map((t) => t.currency)),
   );
 
   const filteredTransactions = useMemo(() => {
@@ -111,13 +59,15 @@ const ListWithFilter = () => {
       // Filter by currency
       if (
         filterState.currency.length > 0 &&
-        !filterState.currency.includes(transaction.symbol)
+        !filterState.currency.includes(transaction.currency)
       ) {
         return false;
       }
 
-      // Filter by amount (extract numeric value from transaction.value)
-      const numericValue = parseFloat(transaction.value.replace(/[$,]/g, ""));
+      // Filter by amount (extract numeric value from transaction.amount)
+      const numericValue = parseFloat(
+        transaction.amount.replace(/[^0-9.-]+/g, ""),
+      );
       if (
         numericValue < filterState.amountRange.min ||
         numericValue > filterState.amountRange.max
@@ -156,6 +106,36 @@ const ListWithFilter = () => {
       count++;
     return count;
   }, [filterState]);
+
+  // Helper function to determine color based on transaction type
+  const getTypeColor = (type: TransactionType) => {
+    switch (type) {
+      case "Received":
+        return "text-green-400";
+      case "Sent":
+        return "text-red-400";
+      case "Swapped":
+        return "text-blue-400";
+      case "Staked":
+        return "text-purple-400";
+      case "Unstaked":
+        return "text-orange-400";
+      default:
+        return "text-white";
+    }
+  };
+
+  // Helper function to get the icon based on transaction type
+  const getTypeIcon = (type: TransactionType) => {
+    switch (type) {
+      case "Received":
+        return <IconPlus size={14} />;
+      case "Sent":
+        return <IconArrowRight size={14} />;
+      default:
+        return <IconArrowRight size={14} />;
+    }
+  };
 
   return (
     <div>
@@ -197,25 +177,42 @@ const ListWithFilter = () => {
                   <h4 className="text-lg font-semibold text-white">
                     Transaction Type
                   </h4>
-                  <div className="flex gap-2">
-                    {["all", "incoming", "outgoing"].map((type) => (
-                      <button
-                        key={type}
-                        onClick={() =>
-                          setFilterState((prev) => ({
-                            ...prev,
-                            type: type as FilterState["type"],
-                          }))
-                        }
-                        className={`rounded-lg px-4 py-2 capitalize transition-all ${
-                          filterState.type === type
-                            ? "bg-indigo-600 text-white"
-                            : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() =>
+                        setFilterState((prev) => ({
+                          ...prev,
+                          type: "all",
+                        }))
+                      }
+                      className={`rounded-lg px-4 py-2 capitalize transition-all ${
+                        filterState.type === "all"
+                          ? "bg-indigo-600 text-white"
+                          : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      All
+                    </button>
+                    {["Received", "Sent", "Swapped", "Staked", "Unstaked"].map(
+                      (type) => (
+                        <button
+                          key={type}
+                          onClick={() =>
+                            setFilterState((prev) => ({
+                              ...prev,
+                              type: type as TransactionType,
+                            }))
+                          }
+                          className={`rounded-lg px-4 py-2 capitalize transition-all ${
+                            filterState.type === type
+                              ? "bg-indigo-600 text-white"
+                              : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+                          }`}
+                        >
+                          {type}
+                        </button>
+                      ),
+                    )}
                   </div>
                 </div>
 
@@ -253,7 +250,7 @@ const ListWithFilter = () => {
                     <div className="flex gap-4">
                       <div className="flex-1">
                         <label className="mb-1 block text-sm text-gray-400">
-                          Min Amount ($)
+                          Min Amount
                         </label>
                         <input
                           type="number"
@@ -273,7 +270,7 @@ const ListWithFilter = () => {
                       </div>
                       <div className="flex-1">
                         <label className="mb-1 block text-sm text-gray-400">
-                          Max Amount ($)
+                          Max Amount
                         </label>
                         <input
                           type="number"
@@ -354,20 +351,34 @@ const ListWithFilter = () => {
             </button>
           </div>
         ) : (
-          filteredTransactions.map((asset) => (
-            <div
-              key={asset.id}
-              className="flex items-center justify-between rounded-xl border-b-2 border-transparent bg-white/5 p-3 px-4 transition-all duration-500 ease-in-out active:border-neutral-400/20 active:bg-white/20"
+          filteredTransactions.map((transaction) => (
+            <button
+              onClick={() => router.push(`/transactions/${transaction.id}`)}
+              key={transaction.id}
+              className="flex w-full cursor-pointer items-center justify-between rounded-xl border-b-2 border-transparent bg-white/5 p-3 px-4 transition-all duration-500 ease-in-out active:scale-[0.985] active:border-neutral-400/20 active:bg-white/20"
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-600/30 text-sm">
-                  {asset.icon}
+                <div className="relative h-8 w-8 overflow-hidden rounded-full bg-white/10">
+                  {transaction.icon ? (
+                    <Image
+                      src={transaction.icon}
+                      alt={transaction.currency}
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      {transaction.currency.charAt(0)}
+                    </div>
+                  )}
                 </div>
                 <div>
-                  <p className="font-semibold text-white">{asset.amount}</p>
+                  <p className="text-left font-semibold text-white">
+                    {transaction.amount} {transaction.currency}
+                  </p>
                   <div className="flex items-center gap-1">
                     <span className="text-xs text-gray-500">
-                      {asset.from.username || asset.from.method}
+                      {transaction.from}
                     </span>
                   </div>
                 </div>
@@ -375,25 +386,21 @@ const ListWithFilter = () => {
               <div className="text-right">
                 <div className="flex items-center gap-1">
                   <p
-                    className={`${asset.type === "incoming" ? "text-green-400" : "text-red-400"} text-sm font-semibold`}
+                    className={`${getTypeColor(transaction.type)} text-sm font-semibold`}
                   >
-                    {asset.value}
+                    {transaction.type}
                   </p>
-                  <p
-                    className={`${asset.type === "incoming" ? "text-green-400" : "text-red-400"} font-semibold`}
-                  >
-                    {asset.type === "incoming" ? (
-                      <IconPlus size={14} />
-                    ) : (
-                      <IconArrowRight size={14} />
-                    )}
+                  <p className={getTypeColor(transaction.type)}>
+                    {getTypeIcon(transaction.type)}
                   </p>
                 </div>
                 <div className="flex items-center justify-end gap-1">
-                  <span className="text-xs text-gray-500">{asset.date}</span>
+                  <span className="text-xs text-gray-500">
+                    {transaction.date.split(" at")[0]}
+                  </span>
                 </div>
               </div>
-            </div>
+            </button>
           ))
         )}
       </div>

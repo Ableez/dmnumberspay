@@ -1,794 +1,883 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { Button } from "#/components/ui/button";
-import { Input } from "#/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "#/components/ui/select";
-import {
-  IconArrowsExchange,
-  IconSwitchVertical,
+  IconBackspace,
   IconCheck,
+  IconChevronLeft,
+  IconSearch,
+  IconSwitchVertical,
+  IconUser,
+  IconX,
   IconShare,
-  IconHome,
+  IconCurrencyDollar,
+  IconCurrencyNaira,
+  IconCoin,
 } from "@tabler/icons-react";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerTitle,
-  DrawerTrigger,
-} from "#/components/ui/drawer";
+import Image from "next/image";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { Drawer, DrawerContent, DrawerTrigger } from "#/components/ui/drawer";
+import { useRouter } from "next/navigation";
 
-type StableCoinCode = "USDT" | "USDC" | "DAI" | "BUSD";
-
-type StableCoin = {
-  code: StableCoinCode;
-  symbol: string;
-  name: string;
-  locale: string;
-  minSend: number;
-  maxSend: number;
-};
-
-const STABLE_COINS: ReadonlyArray<StableCoin> = [
-  {
-    code: "USDT",
-    symbol: "₮",
-    name: "Tether",
-    locale: "en-US",
-    minSend: 1,
-    maxSend: 10000,
-  },
-  {
-    code: "USDC",
-    symbol: "＄",
-    name: "USD Coin",
-    locale: "en-US",
-    minSend: 1,
-    maxSend: 10000,
-  },
-  {
-    code: "DAI",
-    symbol: "◈",
-    name: "Dai",
-    locale: "en-US",
-    minSend: 1,
-    maxSend: 10000,
-  },
-  {
-    code: "BUSD",
-    symbol: "฿",
-    name: "Binance USD",
-    locale: "en-US",
-    minSend: 1,
-    maxSend: 10000,
-  },
-];
-
-const NAIRA_CONVERSION_RATES: Record<StableCoinCode, number> = {
-  USDT: 1480,
-  USDC: 1475,
-  DAI: 1460,
-  BUSD: 1450,
-};
-
-// Add conversion rates for other currencies
-const CURRENCY_RATES = {
-  USD: 1.0,
-  EUR: 0.85,
-  GBP: 0.73,
-  NGN: 1480,
-};
-
-type CurrencyCode = "USD" | "EUR" | "GBP" | "NGN";
-
-type Currency = {
-  code: CurrencyCode;
-  symbol: string;
-  name: string;
-  locale: string;
-};
-
-const CURRENCIES: ReadonlyArray<Currency> = [
-  { code: "USD", symbol: "$", name: "US Dollar", locale: "en-US" },
-  { code: "EUR", symbol: "€", name: "Euro", locale: "de-DE" },
-  { code: "GBP", symbol: "£", name: "British Pound", locale: "en-GB" },
-  { code: "NGN", symbol: "₦", name: "Nigerian Naira", locale: "en-NG" },
-];
-
-const SEND_FEE_PERCENT = 0.5; // 0.5% fee
-
-type ReceiverType = "tag" | "account";
-
-type SendFormState = {
-  receiver: string;
-  asset: StableCoinCode;
-  amount: string;
-};
-
-const initialFormState: SendFormState = {
-  receiver: "",
-  asset: "USDT",
-  amount: "",
-};
-
-const MOCK_BALANCES: Record<StableCoinCode, number> = {
-  USDT: 1234.56,
-  USDC: 789.01,
-  DAI: 456.78,
-  BUSD: 321.09,
-};
-
-// Mock users array
-type MockUser = {
+// Updated Token type with exchange rates
+type Token = {
   id: string;
-  tag: string;
-  phone: string;
   name: string;
-  avatar: string; // url or emoji
+  symbol: string;
+  balance: string;
+  icon: string;
+  exchangeRates: {
+    usdToToken: number; // How many tokens per USD
+    ngnToToken: number; // How many tokens per NGN
+  };
 };
 
-const MOCK_USERS: MockUser[] = [
+type Contact = {
+  id: string;
+  name: string;
+  accountNumber: string;
+  recent: boolean;
+  avatar?: string;
+};
+
+type Currency = "USD" | "NGN" | "TOKEN";
+
+// Updated mock tokens with exchange rates
+const mockTokens: Token[] = [
+  {
+    id: "eth",
+    name: "Ethereum",
+    symbol: "ETH",
+    balance: "0.004738",
+    icon: "https://github.com/ethereum.png",
+    exchangeRates: {
+      usdToToken: 0.000034,
+      ngnToToken: 0.00000002125, // 0.000034 / 1600
+    },
+  },
+  {
+    id: "btc",
+    name: "Bitcoin",
+    symbol: "BTC",
+    balance: "0.00012",
+    icon: "https://github.com/bitcoin.png",
+    exchangeRates: {
+      usdToToken: 0.000018,
+      ngnToToken: 0.00000001125, // 0.000018 / 1600
+    },
+  },
+  {
+    id: "usdt",
+    name: "Tether",
+    symbol: "USDT",
+    balance: "125.45",
+    icon: "https://github.com/tether.png",
+    exchangeRates: {
+      usdToToken: 1, // 1:1 with USD
+      ngnToToken: 0.000625, // 1/1600
+    },
+  },
+  {
+    id: "sol",
+    name: "Solana",
+    symbol: "SOL",
+    balance: "1.35",
+    icon: "https://github.com/solana.png",
+    exchangeRates: {
+      usdToToken: 0.0083,
+      ngnToToken: 0.00000519, // 0.0083 / 1600
+    },
+  },
+  {
+    id: "matic",
+    name: "Polygon",
+    symbol: "MATIC",
+    balance: "45.78",
+    icon: "https://github.com/polygon.png",
+    exchangeRates: {
+      usdToToken: 0.134,
+      ngnToToken: 0.0000838, // 0.134 / 1600
+    },
+  },
+];
+
+const mockContacts: Contact[] = [
   {
     id: "1",
-    tag: "@alice",
-    phone: "9012345678",
-    name: "Alice Johnson",
-    avatar: "🧑",
+    name: "Alex Smith",
+    accountNumber: "09071957815",
+    recent: true,
+    avatar: "https://github.com/identicons/alex.png",
   },
   {
     id: "2",
-    tag: "@bob",
-    phone: "9087654321",
-    name: "Bob Smith",
-    avatar: "🧑",
+    name: "Maria Johnson",
+    accountNumber: "09082846729",
+    recent: true,
   },
   {
     id: "3",
-    tag: "@carol",
-    phone: "9076543210",
-    name: "Carol Lee",
-    avatar: "🧑",
+    name: "John Lee",
+    accountNumber: "09063728192",
+    recent: false,
   },
   {
     id: "4",
-    tag: "@daniel",
-    phone: "9055555555",
-    name: "Daniel Kim",
-    avatar: "🧑",
+    name: "Sarah Williams",
+    accountNumber: "09045637281",
+    recent: false,
   },
 ];
 
-const SendMoney: React.FC = () => {
-  const [form, setForm] = useState<SendFormState>(initialFormState);
-  const [submitted, setSubmitted] = useState<boolean>(false);
-  const [receiverType, setReceiverType] = useState<ReceiverType>("account");
-  const [selectedCurrency, setSelectedCurrency] = useState<CurrencyCode>("USD");
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [inputMode, setInputMode] = useState<"crypto" | "fiat">("crypto");
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+type Step = "recipient" | "amount" | "result";
+type TransactionStatus = "Succeeded" | "Failed";
 
-  const selectedCoin = useMemo<StableCoin>(() => {
-    const found = STABLE_COINS.find((c) => c.code === form.asset);
-    if (!found) throw new Error("Invalid asset code");
-    return found;
-  }, [form.asset]);
+const SendAsset = () => {
+  const router = useRouter();
+  // Step management
+  const [currentStep, setCurrentStep] = useState<Step>("recipient");
+  const [transactionStatus, setTransactionStatus] =
+    useState<TransactionStatus>("Succeeded");
+  const [transactionHash, setTransactionHash] = useState("");
 
-  const amountNum = useMemo<number>(() => {
-    const n = Number(form.amount);
-    return isNaN(n) ? 0 : n;
-  }, [form.amount]);
+  // Form state
+  const [amount, setAmount] = useState("");
+  const [currentCurrency, setCurrentCurrency] = useState<Currency>("USD");
+  const [isTokenDrawerOpen, setIsTokenDrawerOpen] = useState(false);
+  const [selectedToken, setSelectedToken] = useState<Token | undefined>(
+    mockTokens[0] ?? undefined,
+  );
+  const [selectedRecipient, setSelectedRecipient] = useState<Contact | null>(
+    null,
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
 
-  const fee = useMemo<number>(() => {
-    return amountNum > 0 ? (amountNum * SEND_FEE_PERCENT) / 100 : 0;
-  }, [amountNum]);
-
-  const totalDeducted = useMemo<number>(() => {
-    return amountNum + fee;
-  }, [amountNum, fee]);
-
-  const nairaValue = useMemo<number>(() => {
-    return amountNum * NAIRA_CONVERSION_RATES[selectedCoin.code];
-  }, [amountNum, selectedCoin.code]);
-
-  const selectedCurrencyData = useMemo<Currency>(() => {
-    const found = CURRENCIES.find((c) => c.code === selectedCurrency);
-    if (!found) throw new Error("Invalid currency code");
-    return found;
-  }, [selectedCurrency]);
-
-  const convertedAmount = useMemo<number>(() => {
-    if (amountNum <= 0) return 0;
-
-    // For stablecoins, they're pegged to USD, so we convert from USD to target currency
-    const usdAmount = amountNum;
-
-    switch (selectedCurrency) {
-      case "USD":
-        return usdAmount;
-      case "EUR":
-        return usdAmount * CURRENCY_RATES.EUR;
-      case "GBP":
-        return usdAmount * CURRENCY_RATES.GBP;
-      case "NGN":
-        return usdAmount * CURRENCY_RATES.NGN;
-      default:
-        return usdAmount;
+  useEffect(() => {
+    // Focus the search input when on recipient step
+    if (currentStep === "recipient" && searchInputRef.current) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 300);
     }
-  }, [amountNum, selectedCurrency]);
+  }, [currentStep]);
 
-  // Calculate the value to show in the input based on the mode
-  const inputValue = useMemo(() => {
-    if (inputMode === "crypto") {
-      return form.amount;
-    } else {
-      // Convert crypto amount to fiat for display
-      if (!form.amount) return "";
-      const crypto = Number(form.amount);
-      if (isNaN(crypto)) return "";
-      switch (selectedCurrency) {
-        case "USD":
-          return crypto ? (crypto * CURRENCY_RATES.USD).toString() : "";
-        case "EUR":
-          return crypto ? (crypto * CURRENCY_RATES.EUR).toString() : "";
-        case "GBP":
-          return crypto ? (crypto * CURRENCY_RATES.GBP).toString() : "";
-        case "NGN":
-          return crypto ? (crypto * CURRENCY_RATES.NGN).toString() : "";
-        default:
-          return "";
+  // Convert amount to different currencies
+  const convertAmount = useCallback(
+    (value: string, from: Currency, to: Currency): string => {
+      if (!selectedToken || !value || isNaN(parseFloat(value))) return "0";
+
+      const numValue = parseFloat(value);
+      const { exchangeRates } = selectedToken;
+
+      // Convert everything to token amount first
+      let tokenAmount = 0;
+      if (from === "USD") {
+        tokenAmount = numValue * exchangeRates.usdToToken;
+      } else if (from === "NGN") {
+        tokenAmount = numValue * exchangeRates.ngnToToken;
+      } else {
+        tokenAmount = numValue;
       }
-    }
-  }, [form.amount, inputMode, selectedCurrency]);
 
-  // Filter users based on input
-  const userSuggestions = useMemo(() => {
-    const input = form.receiver.trim().toLowerCase();
-    if (!input) return [];
-    if (receiverType === "tag") {
-      return MOCK_USERS.filter((u) => u.tag.toLowerCase().startsWith(input));
+      // Convert token amount to target currency
+      if (to === "USD") {
+        return (tokenAmount / exchangeRates.usdToToken).toFixed(2);
+      } else if (to === "NGN") {
+        return (tokenAmount / exchangeRates.ngnToToken).toFixed(2);
+      } else {
+        return tokenAmount.toFixed(6); // Token amounts typically need more precision
+      }
+    },
+    [selectedToken],
+  );
+
+  // Get display amount based on current currency
+  const getDisplayAmount = useCallback(() => {
+    if (!amount) return "0";
+
+    if (currentCurrency === "USD") {
+      return `$${parseFloat(amount).toFixed(2)}`;
+    } else if (currentCurrency === "NGN") {
+      return `₦${parseFloat(amount).toFixed(2)}`;
     } else {
-      return MOCK_USERS.filter((u) =>
-        u.phone.startsWith(input.replace(/\D/g, "")),
+      return `${parseFloat(amount).toFixed(6)} ${selectedToken?.symbol}`;
+    }
+  }, [amount, currentCurrency, selectedToken]);
+
+  // Get converted amounts for other currencies
+  const getConvertedAmounts = useCallback(() => {
+    if (!amount || !selectedToken) return { usd: "0", ngn: "0", token: "0" };
+
+    const usdAmount =
+      currentCurrency === "USD"
+        ? amount
+        : convertAmount(amount, currentCurrency, "USD");
+
+    const ngnAmount =
+      currentCurrency === "NGN"
+        ? amount
+        : convertAmount(amount, currentCurrency, "NGN");
+
+    const tokenAmount =
+      currentCurrency === "TOKEN"
+        ? amount
+        : convertAmount(amount, currentCurrency, "TOKEN");
+
+    return {
+      usd: usdAmount,
+      ngn: ngnAmount,
+      token: tokenAmount,
+    };
+  }, [amount, currentCurrency, selectedToken, convertAmount]);
+
+  // Toggle between currencies
+  const toggleCurrency = useCallback(() => {
+    // Preserve the value when switching currencies
+    if (amount) {
+      const newCurrency =
+        currentCurrency === "USD"
+          ? "NGN"
+          : currentCurrency === "NGN"
+            ? "TOKEN"
+            : "USD";
+
+      const convertedValue = convertAmount(
+        amount,
+        currentCurrency,
+        newCurrency,
+      );
+      setAmount(convertedValue);
+      setCurrentCurrency(newCurrency);
+    } else {
+      // Just cycle through currencies if no amount entered
+      setCurrentCurrency((prev) =>
+        prev === "USD" ? "NGN" : prev === "NGN" ? "TOKEN" : "USD",
       );
     }
-  }, [form.receiver, receiverType]);
+  }, [amount, currentCurrency, convertAmount]);
 
-  // selectedUser is now derived from input value
-  const selectedUser = useMemo(() => {
-    if (!form.receiver) return null;
-    if (receiverType === "tag") {
-      return MOCK_USERS.find(
-        (u) => u.tag.toLowerCase() === form.receiver.trim().toLowerCase(),
-      );
-    } else {
-      return MOCK_USERS.find(
-        (u) => u.phone === form.receiver.replace(/\D/g, ""),
-      );
+  // Handle step navigation
+  const goToNextStep = useCallback(() => {
+    if (currentStep === "recipient" && selectedRecipient) {
+      setCurrentStep("amount");
+    } else if (currentStep === "amount" && amount && parseFloat(amount) > 0) {
+      // Process the transaction
+      processTransaction();
     }
-  }, [form.receiver, receiverType]);
+  }, [currentStep, selectedRecipient, amount]);
 
-  // Handler for input change
-  const handleAmountInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (inputMode === "crypto") {
-      setForm((prev) => ({
-        ...prev,
-        amount: value,
-      }));
-    } else {
-      // Convert fiat value to crypto and store as crypto in form.amount
-      const fiat = Number(value);
-      if (isNaN(fiat)) {
-        setForm((prev) => ({
-          ...prev,
-          amount: "",
-        }));
-        return;
-      }
-      let crypto = fiat;
-      switch (selectedCurrency) {
-        case "USD":
-          crypto = fiat / CURRENCY_RATES.USD;
-          break;
-        case "EUR":
-          crypto = fiat / CURRENCY_RATES.EUR;
-          break;
-        case "GBP":
-          crypto = fiat / CURRENCY_RATES.GBP;
-          break;
-        case "NGN":
-          crypto = fiat / CURRENCY_RATES.NGN;
-          break;
-      }
-      setForm((prev) => ({
-        ...prev,
-        amount: crypto ? crypto.toString() : "",
-      }));
+  const goToPrevStep = useCallback(() => {
+    if (currentStep === "amount") {
+      setCurrentStep("recipient");
     }
-  };
+  }, [currentStep]);
 
-  // Handler for switch button
-  const handleSwitchInputMode = () => {
-    setInputMode((prev) => (prev === "crypto" ? "fiat" : "crypto"));
-  };
+  // Process transaction and show result
+  const processTransaction = useCallback(() => {
+    // Show loading state (could add this as a separate step)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleAssetChange = (value: StableCoinCode) => {
-    setForm((prev) => ({
-      ...prev,
-      asset: value,
-    }));
-  };
-
-  const handleReceiverTypeSwitch = () => {
-    setReceiverType((prev) => (prev === "tag" ? "account" : "tag"));
-    setForm((prev) => ({
-      ...prev,
-      receiver: "",
-    }));
-  };
-
-  const handleReceiverInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleChange(e);
-    setShowSuggestions(true);
-  };
-
-  // Use onMouseDown for suggestion click to avoid blur race
-  const handleSuggestionClick = (user: MockUser) => {
-    setForm((prev) => ({
-      ...prev,
-      receiver: receiverType === "tag" ? user.tag : user.phone,
-    }));
-    setShowSuggestions(false);
-  };
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setSubmitted(true);
+    // Simulate API call
     setTimeout(() => {
-      setShowSuccess(true);
-    }, 600); // short delay for effect
-    // Add send logic here
+      // Random success or failure (90% success rate)
+      const success = Math.random() > 0.1;
+      setTransactionStatus(success ? "Succeeded" : "Failed");
+
+      // Generate random transaction hash
+      const hash =
+        "0x" +
+        Array.from({ length: 64 }, () =>
+          Math.floor(Math.random() * 16).toString(16),
+        ).join("");
+      setTransactionHash(hash);
+
+      // Move to result step
+      setCurrentStep("result");
+    }, 1500);
+  }, [amount, selectedToken, selectedRecipient]);
+
+  // Handle number input
+  const handleNumberPress = useCallback(
+    (num: string) => {
+      if (num === "." && amount.includes(".")) return;
+      if (
+        amount.includes(".") &&
+        amount.split(".")[1] &&
+        amount.split(".")[1]!.length >= 2 &&
+        currentCurrency !== "TOKEN" &&
+        num !== "←"
+      )
+        return;
+      if (
+        amount.includes(".") &&
+        amount.split(".")[1] &&
+        amount.split(".")[1]!.length >= 6 &&
+        currentCurrency === "TOKEN" &&
+        num !== "←"
+      )
+        return;
+      if (amount.length >= 12 && num !== "←") return;
+
+      setAmount((prev) => prev + num);
+    },
+    [amount, currentCurrency],
+  );
+
+  // Handle delete button press
+  const handleDelete = useCallback(() => {
+    setAmount((prev) => prev.slice(0, -1));
+  }, []);
+
+  // Handle token selection
+  const handleSelectToken = useCallback(
+    (token: Token) => {
+      setSelectedToken(token);
+      setIsTokenDrawerOpen(false);
+
+      // Recalculate amount based on new token exchange rates
+      if (amount && currentCurrency !== "TOKEN") {
+        const tokenAmount = convertAmount(amount, currentCurrency, "TOKEN");
+        const displayAmount =
+          currentCurrency === "USD"
+            ? (
+                parseFloat(tokenAmount) / token.exchangeRates.usdToToken
+              ).toFixed(2)
+            : (
+                parseFloat(tokenAmount) / token.exchangeRates.ngnToToken
+              ).toFixed(2);
+        setAmount(displayAmount);
+      }
+    },
+    [amount, currentCurrency, convertAmount],
+  );
+
+  // Handle recipient selection
+  const handleSelectRecipient = useCallback((contact: Contact) => {
+    setSelectedRecipient(contact);
+    setAccountNumber(contact.accountNumber);
+    // Automatically go to next step when recipient is selected
+    setTimeout(() => setCurrentStep("amount"), 300);
+  }, []);
+
+  // Handle manual account number input
+  const handleSubmitAccountNumber = useCallback(() => {
+    if (accountNumber.length >= 8) {
+      setSelectedRecipient({
+        id: "custom",
+        name: "Custom Account",
+        accountNumber: accountNumber,
+        recent: false,
+      });
+      setTimeout(() => setCurrentStep("amount"), 300);
+    }
+  }, [accountNumber]);
+
+  // Filter contacts based on search query
+  const filteredContacts = mockContacts.filter(
+    (contact) =>
+      contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.accountNumber.includes(searchQuery),
+  );
+
+  // Share transaction as image
+  const handleShareTransaction = async () => {
+    if (!resultRef.current) return;
+
+    try {
+      // This would use html2canvas in a real implementation
+      alert("Transaction shared successfully!");
+    } catch (error) {
+      console.error("Error generating transaction image:", error);
+    }
   };
 
-  const receiverLabel =
-    receiverType === "tag" ? "Receiver Tag" : "Receiver Account Number";
-  const receiverPlaceholder =
-    receiverType === "tag" ? "@username" : "90 1234 5678";
-  const receiverInputType = receiverType === "tag" ? "text" : "tel";
-  const receiverMinLength = receiverType === "tag" ? 3 : 8;
-  const receiverMaxLength = receiverType === "tag" ? 32 : 20;
-  const receiverAutoComplete = receiverType === "tag" ? "off" : "off";
-
-  // Calculate responsive font size based on amount length
-  const getAmountFontSize = (amount: string): string => {
-    const length = amount.length;
-    if (length <= 6) return "text-6xl";
-    if (length <= 8) return "text-5xl";
-    if (length <= 10) return "text-4xl";
-    if (length <= 12) return "text-3xl";
-    return "text-2xl";
+  // Get the currency icon
+  const getCurrencyIcon = () => {
+    switch (currentCurrency) {
+      case "USD":
+        return <IconCurrencyDollar size={20} />;
+      case "NGN":
+        return <IconCurrencyNaira size={20} />;
+      case "TOKEN":
+        return <IconCoin size={20} />;
+    }
   };
 
-  const amountDisplay =
-    amountNum > 0
-      ? `${selectedCoin.symbol}${amountNum.toLocaleString(selectedCoin.locale, {
-          style: "decimal",
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })} ${selectedCoin.code}`
-      : `0.00 ${selectedCoin.code}`;
-
-  // Success animation and options
-  if (showSuccess) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#111] via-black to-black px-4 py-8">
-        <div className="flex flex-col items-center gap-6">
-          <div className="relative flex items-center justify-center">
-            <span className="animate-bounce rounded-full bg-green-500/20 p-6">
-              <IconCheck size={64} className="animate-pulse text-green-400" />
-            </span>
-          </div>
-          <div className="animate-fade-in text-2xl font-bold text-green-300">
-            Sent!
-          </div>
-          <div className="text-center text-white/80">
-            You have sent{" "}
-            <span className="font-bold text-white">
-              {form.amount || "0.00"} {selectedCoin.code}
-            </span>
-            {selectedUser && (
-              <>
-                {" "}
-                to <span className="font-bold">{selectedUser.name}</span>
-              </>
-            )}
-          </div>
-          <div className="mt-4 flex gap-4">
-            <Button
-              className="bg-primary flex items-center gap-2"
-              onClick={() => {
-                // redirect to home
-                window.location.href = "/";
-              }}
-            >
-              <IconHome size={20} />
-              Home
-            </Button>
-            <Button
-              className="flex items-center gap-2"
-              variant="outline"
-              onClick={() => {
-                // share logic (copy to clipboard)
-                const shareText = `I just sent ${form.amount || "0.00"} ${selectedCoin.code} on DMNumbersPay!`;
-                if (navigator.share) {
-                  void navigator.share({
-                    title: "Sent Crypto",
-                    text: shareText,
-                    url: window.location.origin,
-                  });
-                } else {
-                  void navigator.clipboard.writeText(shareText);
-                  alert("Share text copied to clipboard!");
-                }
-              }}
-            >
-              <IconShare size={20} />
-              Share
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Get converted values for display
+  const convertedAmounts = getConvertedAmounts();
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-b from-[#111] via-black to-black px-4 py-8 pt-32">
-      <div className="w-full">
-        <form
-          className="flex flex-col gap-5"
-          autoComplete="off"
-          onSubmit={handleSubmit}
-        >
-          {/* Asset Selection Drawer at Top */}
-          <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-            <DrawerTrigger asChild>
-              <Button
-                variant={"faded"}
-                className="mx-auto flex w-fit place-items-center items-center gap-2 rounded-full bg-white/10 py-3 text-lg font-bold text-white shadow transition-all hover:bg-white/20"
+    <div className={"p-6 py-20"}>
+      {currentStep === "recipient" ? (
+        /* Step 1: Recipient Selection */
+        <div className="flex flex-col">
+          <h2 className="mb-6 text-2xl font-bold">Send To</h2>
+
+          {/* Search Input */}
+          <div className="relative mb-6">
+            <div className="absolute top-1/2 left-3 -translate-y-1/2 text-gray-400">
+              <IconSearch size={20} />
+            </div>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search by name or account number"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-2xl border border-white/5 bg-neutral-900 py-3 pr-4 pl-10 text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none"
+            />
+          </div>
+
+          {/* Manual Input */}
+          <div className="mb-6 rounded-2xl border border-white/5 bg-neutral-900 p-4">
+            <h4 className="mb-2 font-semibold">Enter Account Number</h4>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="e.g., 09071234567"
+                value={accountNumber}
+                onChange={(e) =>
+                  setAccountNumber(e.target.value.replace(/[^0-9]/g, ""))
+                }
+                className="flex-1 rounded-2xl border border-white/5 bg-neutral-800 p-3 text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none"
+              />
+              <button
+                onClick={handleSubmitAccountNumber}
+                disabled={accountNumber.length < 8}
+                className="rounded-2xl bg-purple-600 px-4 font-semibold text-white disabled:bg-purple-600/50"
               >
-                <span className="text-2xl">{selectedCoin.symbol}</span>
-                <span>{selectedCoin.code}</span>
-                <span className="text-xs text-white/60">
-                  {selectedCoin.locale}
-                </span>
-              </Button>
-            </DrawerTrigger>
-            <DrawerContent>
-              <div className="p-2 pb-16">
-                <DrawerTitle className="mb-8 p-4 text-center text-3xl font-black text-white">
-                  Select Asset
-                </DrawerTitle>
-                <div className="flex flex-col gap-2">
-                  {STABLE_COINS.map((coin) => (
-                    <Button
-                      variant={"faded"}
-                      key={coin.code}
-                      className={`flex h-16 items-center justify-between rounded-full px-4 transition ${
-                        form.asset === coin.code
-                          ? "bg-[#4C17BF] text-white hover:bg-[#4C17BF] hover:opacity-90"
-                          : "bg-white/5 text-white hover:bg-white/20"
-                      }`}
-                      onClick={() => {
-                        handleAssetChange(coin.code);
-                        setDrawerOpen(false);
-                      }}
+                Done
+              </button>
+            </div>
+          </div>
+
+          {/* Recent Recipients */}
+          {filteredContacts.some((c) => c.recent) && (
+            <>
+              <h4 className="mb-2 font-semibold text-gray-400">Recent</h4>
+              <div className="mb-6 space-y-2">
+                {filteredContacts
+                  .filter((contact) => contact.recent)
+                  .map((contact) => (
+                    <button
+                      key={contact.id}
+                      onClick={() => handleSelectRecipient(contact)}
+                      className="flex w-full items-center gap-3 rounded-2xl bg-neutral-900/70 p-3 text-left transition-colors hover:bg-neutral-800"
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-8 w-8 place-items-center justify-center rounded-full bg-white/5 align-middle text-xl">
-                          {coin.symbol}
-                        </span>
-                        <span className="text-lg font-bold">{coin.code}</span>
-                        <span className="text-xs text-white/60">
-                          {coin.name}
-                        </span>
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-600/20 text-purple-400">
+                        {contact.avatar ? (
+                          <Image
+                            src={contact.avatar}
+                            alt={contact.name}
+                            width={40}
+                            height={40}
+                            className="rounded-full"
+                          />
+                        ) : (
+                          <IconUser size={20} />
+                        )}
                       </div>
-                      <div className="p-1 text-right">
-                        <div className="text-xs text-white/50">Balance</div>
-                        <div className="font-mono text-sm font-bold">
-                          {MOCK_BALANCES[coin.code].toLocaleString(
-                            coin.locale,
-                            {
-                              style: "decimal",
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            },
-                          )}{" "}
-                          {coin.code}
+                      <div>
+                        <p className="font-semibold">{contact.name}</p>
+                        <p className="text-sm text-gray-400">
+                          {contact.accountNumber}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            </>
+          )}
+
+          {/* All Contacts */}
+          {filteredContacts.some((c) => !c.recent) && (
+            <>
+              <h4 className="mb-2 font-semibold text-gray-400">All Contacts</h4>
+              <div className="space-y-2">
+                {filteredContacts
+                  .filter((contact) => !contact.recent)
+                  .map((contact) => (
+                    <button
+                      key={contact.id}
+                      onClick={() => handleSelectRecipient(contact)}
+                      className="flex w-full items-center gap-3 rounded-2xl bg-neutral-900/70 p-3 text-left transition-colors hover:bg-neutral-800"
+                    >
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-600/20 text-purple-400">
+                        {contact.avatar ? (
+                          <Image
+                            src={contact.avatar}
+                            alt={contact.name}
+                            width={40}
+                            height={40}
+                            className="rounded-full"
+                          />
+                        ) : (
+                          <IconUser size={20} />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-semibold">{contact.name}</p>
+                        <p className="text-sm text-gray-400">
+                          {contact.accountNumber}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+              </div>
+            </>
+          )}
+
+          {filteredContacts.length === 0 && searchQuery && (
+            <div className="mt-8 text-center text-gray-400">
+              <p>No matching contacts found</p>
+              <p className="mt-2 text-sm">
+                Try a different search or enter the account number manually
+              </p>
+            </div>
+          )}
+        </div>
+      ) : currentStep === "amount" ? (
+        /* Step 2: Amount Input */
+        <div className="flex flex-col">
+          {/* Back button and recipient display */}
+          <button
+            onClick={goToPrevStep}
+            className="sticky top-16 z-[999] mb-4 flex items-center rounded-3xl bg-neutral-900/50 p-2.5 backdrop-blur-lg transition-all duration-100 ease-in-out hover:scale-[0.9]"
+          >
+            <span className="mr-2 rounded-full bg-neutral-900/70 p-2 text-white/70 hover:bg-neutral-800 hover:text-white">
+              <IconChevronLeft size={20} />
+            </span>
+            <div className="flex flex-1 items-center gap-2">
+              <div className="rounded-full bg-purple-600/20 p-2">
+                <IconUser size={16} className="text-purple-400" />
+              </div>
+              <div>
+                <p className="font-semibold">
+                  {selectedRecipient?.name ?? "Custom Account"}
+                </p>
+                <p className="text-sm text-gray-400">
+                  {selectedRecipient?.accountNumber}
+                </p>
+              </div>
+            </div>
+          </button>
+
+          <div
+            className={
+              "relative mt-4 flex h-32 place-items-center items-center justify-center text-center align-middle"
+            }
+          >
+            <div
+              className={
+                "absolute top-0 left-0 h-32 w-12 bg-gradient-to-r from-black to-transparent"
+              }
+            />
+            {/* Currency Toggle Button - Top Left */}
+            <button
+              onClick={toggleCurrency}
+              className="absolute top-0 left-2 flex h-10 w-10 items-center justify-center rounded-full bg-neutral-800 text-white/80 hover:bg-neutral-700"
+            >
+              {getCurrencyIcon()}
+            </button>
+
+            <textarea
+              name="amount"
+              id="amount"
+              className="mx-auto max-w-full resize-none truncate text-center text-7xl font-bold placeholder:text-white/20 focus:outline-none"
+              rows={1}
+              placeholder={
+                currentCurrency === "USD"
+                  ? "$0.00"
+                  : currentCurrency === "NGN"
+                    ? "₦0.00"
+                    : "0.000000"
+              }
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            ></textarea>
+            <div
+              className={"h-32 w-4 bg-gradient-to-l from-black to-transparent"}
+            />
+          </div>
+
+          {/* Currency Conversion Display */}
+          <div className="mb-4 flex flex-col items-center gap-1">
+            {currentCurrency !== "USD" && (
+              <div className="text-sm text-gray-400">
+                ≈ ${parseFloat(convertedAmounts.usd).toFixed(2)} USD
+              </div>
+            )}
+            {currentCurrency !== "NGN" && (
+              <div className="text-sm text-gray-400">
+                ≈ ₦{parseFloat(convertedAmounts.ngn).toFixed(2)} NGN
+              </div>
+            )}
+            {currentCurrency !== "TOKEN" && (
+              <div className="text-sm text-gray-400">
+                ≈ {parseFloat(convertedAmounts.token).toFixed(6)}{" "}
+                {selectedToken?.symbol}
+              </div>
+            )}
+          </div>
+
+          <div
+            className={"flex items-center justify-center gap-2 align-middle"}
+          >
+            {/* Token display */}
+            <div className={"rounded-full bg-neutral-800 p-0.5"}>
+              <Image
+                src={selectedToken?.icon}
+                alt={selectedToken?.symbol}
+                width={25}
+                height={25}
+              />
+            </div>
+            <span className="text-2xl font-bold">{selectedToken?.symbol}</span>
+
+            <button
+              onClick={toggleCurrency}
+              className={
+                "ml-2 flex cursor-pointer place-items-center justify-center rounded-full bg-neutral-900 p-1 align-middle transition-all duration-300 ease-in-out hover:scale-[0.99]"
+              }
+            >
+              <IconSwitchVertical size={20} />
+            </button>
+          </div>
+
+          {/* Token Selection Drawer */}
+          <Drawer open={isTokenDrawerOpen} onOpenChange={setIsTokenDrawerOpen}>
+            <DrawerTrigger asChild>
+              <button className="my-7 flex w-full items-center gap-4 rounded-3xl bg-neutral-900/50 px-6 py-2.5 transition-all duration-100 ease-in-out hover:bg-neutral-800/60 active:scale-[0.99]">
+                <div className="flex aspect-square w-16 items-center justify-center rounded-full bg-neutral-800 p-1">
+                  <Image
+                    className="aspect-square rounded-full"
+                    src={selectedToken?.icon}
+                    alt={selectedToken?.symbol}
+                    width={40}
+                    height={40}
+                  />
+                </div>
+
+                <div className="flex flex-1 flex-col items-start text-left">
+                  <h4 className="text-lg font-semibold">
+                    {selectedToken?.name}
+                  </h4>
+                  <h4 className="font-medium text-white/60">
+                    {selectedToken?.balance} {selectedToken?.symbol}
+                  </h4>
+                </div>
+
+                <span className="ml-auto rounded-full bg-purple-800/20 px-4 py-1.5 text-sm font-semibold text-purple-600 transition-colors hover:bg-purple-800/30">
+                  Use max
+                </span>
+              </button>
+            </DrawerTrigger>
+            <DrawerContent className="bg-black text-white">
+              <div className="h-[50vh] overflow-y-auto p-6">
+                <div className="mb-6 flex items-center justify-between border-b border-white/10 pb-4">
+                  <h3 className="text-xl font-bold">Select Token</h3>
+                  <button
+                    onClick={() => setIsTokenDrawerOpen(false)}
+                    className="rounded-full bg-white/10 p-1 hover:bg-white/20"
+                  >
+                    <IconX size={20} />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {mockTokens.map((token) => (
+                    <button
+                      key={token.id}
+                      onClick={() => handleSelectToken(token)}
+                      className={`flex w-full items-center gap-4 rounded-xl p-4 transition-colors ${
+                        selectedToken?.id === token.id
+                          ? "border border-purple-600/30 bg-purple-900/30"
+                          : "bg-neutral-900/50 hover:bg-neutral-800"
+                      }`}
+                    >
+                      <div className="flex aspect-square w-12 items-center justify-center rounded-full bg-neutral-800 p-1">
+                        <Image
+                          className="aspect-square rounded-full"
+                          src={token.icon}
+                          alt={token.symbol}
+                          width={30}
+                          height={30}
+                        />
+                      </div>
+                      <div className="flex flex-1 flex-col items-start text-left">
+                        <h4 className="font-semibold">{token.name}</h4>
+                        <h4 className="text-sm text-white/60">
+                          {token.balance} {token.symbol}
+                        </h4>
+                      </div>
+                      {selectedToken?.id === token.id && (
+                        <div className="ml-auto flex h-6 w-6 items-center justify-center rounded-full bg-purple-600">
+                          <IconCheck size={16} />
                         </div>
-                      </div>
-                    </Button>
+                      )}
+                    </button>
                   ))}
                 </div>
               </div>
             </DrawerContent>
           </Drawer>
 
-          {/* Responsive Amount Input */}
-          <div className="flex flex-col items-center gap-2">
-            <div className="relative flex w-full items-center justify-center">
-              <input
-                id="amount"
-                name="amount"
-                type="number"
-                min={selectedCoin.minSend}
-                max={selectedCoin.maxSend}
-                step="0.01"
-                required
-                placeholder={
-                  inputMode === "crypto"
-                    ? `0.00 ${selectedCoin.code}`
-                    : `0.00 ${selectedCurrency}`
-                }
-                className={`m-8 w-fit overflow-clip bg-transparent! text-center font-black focus:outline-none ${getAmountFontSize(form.amount)} [appearance:textfield] border-none text-white placeholder:text-white/30 focus:border-none focus:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
-                value={inputMode === "crypto" ? form.amount : inputValue}
-                onChange={handleAmountInputChange}
-                inputMode="decimal"
-                style={{
-                  scrollbarWidth: "none",
-                  scrollbarColor: "transparent",
-                }}
-                onWheel={(e) => {
-                  (e.target as HTMLInputElement).blur();
-                  e.preventDefault();
-                }}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-[50px] text-lg font-medium text-white/70">
-                {inputMode === "crypto" ? selectedCoin.code : selectedCurrency}
-              </span>
-              <Button
-                type="button"
-                variant="faded"
-                onClick={handleSwitchInputMode}
-                aria-label="Switch input mode"
-                className="relative w-24 overflow-hidden p-0 pr-4"
-              >
-                <span
-                  className={`flex aspect-square h-10 w-10 place-items-center items-center justify-center rounded-full bg-white/10 text-2xl transition-all duration-300 ${inputMode === "crypto" ? "translate-x-0 opacity-100" : "-translate-x-10 opacity-0"} absolute top-1/2 left-0 -translate-y-1/2`}
-                  style={{ zIndex: inputMode === "crypto" ? 2 : 1 }}
-                >
-                  {selectedCoin.symbol}
-                </span>
-                <span
-                  className={`flex aspect-square h-10 w-10 place-items-center items-center justify-center rounded-full bg-white/10 text-2xl transition-all duration-300 ${inputMode === "crypto" ? "translate-x-10 opacity-0" : "translate-x-0 opacity-100"} absolute top-1/2 left-0 -translate-y-1/2`}
-                  style={{ zIndex: inputMode === "crypto" ? 1 : 2 }}
-                >
-                  {selectedCurrencyData.symbol}
-                </span>
-                <span
-                  className={` ${getAmountFontSize(form.amount)} pointer-events-none ml-12 p-1 text-xl font-bold text-white/80 transition-all duration-300 select-none`}
-                >
-                  {inputMode === "crypto"
-                    ? selectedCurrencyData.symbol
-                    : selectedCoin.symbol}
-                </span>
-              </Button>
-            </div>
-            {/* Show the equivalent value below */}
-            <div className="text-sm text-white/60">
-              {inputMode === "crypto"
-                ? `${selectedCurrencyData.symbol}${convertedAmount.toLocaleString(
-                    selectedCurrencyData.locale,
-                    {
-                      style: "decimal",
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    },
-                  )} ${selectedCurrency}`
-                : `${selectedCoin.symbol}${amountNum.toLocaleString(
-                    selectedCoin.locale,
-                    {
-                      style: "decimal",
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    },
-                  )} ${selectedCoin.code}`}
-            </div>
-          </div>
+          {/* Number Keyboard */}
 
-          {/* Receiver Input with Currency Display */}
-          <div className="flex flex-col gap-2">
-            <div className="flex place-items-center justify-between rounded-3xl bg-white/5 p-2 align-middle text-white">
-              <div className="flex items-center gap-2">
-                <Select
-                  value={selectedCurrency}
-                  onValueChange={(c) => setSelectedCurrency(c)}
-                >
-                  <SelectTrigger className="h-8 rounded-full border-none bg-white/20 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CURRENCIES.map((currency) => (
-                      <SelectItem key={currency.code} value={currency.code}>
-                        {currency.symbol} {currency.code}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="pr-4 text-right">
-                <div className="text-lg font-bold text-green-400">
-                  {amountNum > 0
-                    ? `${selectedCurrencyData.symbol}${convertedAmount.toLocaleString(
-                        selectedCurrencyData.locale,
-                        {
-                          style: "decimal",
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        },
-                      )}`
-                    : `${selectedCurrencyData.symbol}0.00`}
-                </div>
-                <div className="text-xs text-white/60">
-                  {amountNum > 0
-                    ? `${selectedCoin.symbol}${amountNum.toLocaleString(
-                        selectedCoin.locale,
-                        {
-                          style: "decimal",
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        },
-                      )} ${selectedCoin.code}`
-                    : `${selectedCoin.symbol}0.00 ${selectedCoin.code}`}
-                </div>
-              </div>
-            </div>
-            <div className="relative">
-              <div
-                className={
-                  "absolute top-1/2 left-1/2 z-[45] mx-auto flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center justify-center rounded-full border-4 border-black bg-neutral-900 align-middle text-xs font-black"
-                }
-              >
-                TO
-              </div>
-            </div>
-            <div className="relative">
-              <Input
-                id="receiver"
-                name="receiver"
-                type={receiverInputType}
-                required
-                minLength={receiverMinLength}
-                maxLength={receiverMaxLength}
-                autoComplete={receiverAutoComplete}
-                placeholder={receiverPlaceholder}
-                className="h-12 w-full bg-transparent p-4 text-xl text-white placeholder:text-white/50 focus:outline-none"
-                value={form.receiver}
-                onChange={handleReceiverInput}
-                inputMode={receiverType === "tag" ? "text" : "numeric"}
-                pattern={receiverType === "tag" ? undefined : "[0-9]*"}
-                onFocus={() => setShowSuggestions(true)}
-                onBlur={() => setShowSuggestions(false)}
-                autoCorrect="off"
-                spellCheck={false}
-              />
-              {showSuggestions && userSuggestions.length > 0 && (
-                <div className="absolute top-full right-0 left-0 z-10 mt-1 rounded-lg bg-black/90 shadow-lg">
-                  {userSuggestions.map((user) => (
-                    <button
-                      key={user.id}
-                      type="button"
-                      className="hover:bg-primary/80 flex w-full items-center gap-3 px-4 py-2 text-left text-white"
-                      onMouseDown={() => handleSuggestionClick(user)}
-                    >
-                      <span className="text-2xl">{user.avatar}</span>
-                      <span className="font-bold">{user.name}</span>
-                      <span className="text-xs text-white/60">
-                        {receiverType === "tag" ? user.tag : user.phone}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            {selectedUser && (
-              <>
-                <div className="mt-4 mb-1 text-center text-base font-semibold text-white/80">
-                  Send{" "}
-                  <span className="font-bold text-white">
-                    {form.amount || "0.00"} {selectedCoin.code}
-                  </span>{" "}
-                  to
-                </div>
-                <div className="animate-in fade-in zoom-in-95 flex items-center gap-3 rounded-lg bg-white/10 p-3 text-white transition-all">
-                  <span className="text-3xl">{selectedUser.avatar}</span>
-                  <div>
-                    <div className="font-bold">{selectedUser.name}</div>
-                    <div className="text-xs text-white/60">
-                      {selectedUser.tag} &middot; {selectedUser.phone}
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-            <div className="flex items-center justify-end">
-              <Button
-                type="button"
-                variant="ghost"
-                className="flex items-center gap-1 justify-self-end px-2 py-1 text-xs text-white"
-                onClick={handleReceiverTypeSwitch}
-                aria-label={`Switch to ${receiverType === "tag" ? "Account" : "Tag"}`}
-                tabIndex={0}
-              >
-                <IconArrowsExchange size={18} />
-                {receiverType === "tag" ? "Use Account" : "Use Tag"}
-              </Button>
-            </div>
-          </div>
-
-          {/* Transaction Details */}
-          <div className="flex flex-col gap-1 rounded-lg bg-black/30 p-3">
-            <span className="text-xs text-white/60">
-              ≈ ₦
-              {amountNum > 0
-                ? nairaValue.toLocaleString("en-NG", {
-                    style: "decimal",
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })
-                : "--"}{" "}
-              NGN
-            </span>
-            <span className="mt-2 text-xs text-yellow-300">
-              <b>Note:</b> A {SEND_FEE_PERCENT}% fee applies. You will be
-              charged a total of{" "}
-              <span className="font-semibold text-white">
-                {totalDeducted > 0
-                  ? `${selectedCoin.symbol}${totalDeducted.toLocaleString(
-                      selectedCoin.locale,
-                      {
-                        style: "decimal",
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      },
-                    )} ${selectedCoin.code}`
-                  : "--"}
-              </span>
-              .
-            </span>
-          </div>
-
-          <Button
-            type="submit"
-            className="bg-primary w-full text-lg font-semibold"
-            disabled={
-              !form.receiver ||
-              amountNum < selectedCoin.minSend ||
-              amountNum > selectedCoin.maxSend
-            }
+          {/* Continue Button */}
+          <button
+            onClick={goToNextStep}
+            className="mt-8 w-full rounded-full bg-purple-600 py-4 text-center font-bold text-white disabled:opacity-50"
+            disabled={!amount || parseFloat(amount) === 0}
           >
             Send
-          </Button>
-        </form>
-      </div>
+          </button>
+        </div>
+      ) : (
+        /* Step 3: Transaction Result */
+        <div className="flex min-h-[80vh] flex-col" ref={resultRef}>
+          {/* Transaction Details */}
+          <div className="mt-8 flex flex-col items-center">
+            <div
+              className="relative mb-2 h-16 w-16 rounded-full p-2"
+              style={{ backgroundColor: "#ffffff1a" }}
+            >
+              <Image
+                src={selectedToken?.icon ?? "https://github.com/ethereum.png"}
+                alt={selectedToken?.symbol ?? "ETH"}
+                fill
+                className="rounded-full object-contain p-2"
+              />
+              <div
+                className="absolute -right-1 bottom-0 rounded-full p-1"
+                style={{
+                  backgroundColor:
+                    transactionStatus === "Succeeded" ? "#22c55e" : "#ef4444",
+                }}
+              >
+                {transactionStatus === "Succeeded" ? (
+                  <IconCheck size={12} />
+                ) : (
+                  <IconX size={12} />
+                )}
+              </div>
+            </div>
+
+            <h2
+              className="mt-4 text-3xl font-bold"
+              style={{
+                color:
+                  transactionStatus === "Succeeded" ? "#22c55e" : "#ef4444",
+              }}
+            >
+              {currentCurrency === "USD"
+                ? `$${parseFloat(amount).toFixed(2)}`
+                : currentCurrency === "NGN"
+                  ? `₦${parseFloat(amount).toFixed(2)}`
+                  : `${parseFloat(amount).toFixed(6)} ${selectedToken?.symbol}`}
+            </h2>
+            <p className="mt-2 text-center text-gray-400">
+              {transactionStatus === "Succeeded"
+                ? "Transaction completed successfully"
+                : "Transaction failed"}
+            </p>
+
+            <div
+              className="mt-8 w-full divide-y rounded-2xl"
+              style={{ backgroundColor: "#0a0a0a", borderColor: "#ffffff1a" }}
+            >
+              <div className="flex h-16 items-center justify-between px-6">
+                <span style={{ color: "#9ca3af" }}>Date</span>
+                <span className="font-semibold" style={{ color: "#ffffff" }}>
+                  {new Date().toLocaleString()}
+                </span>
+              </div>
+
+              <div className="flex h-16 items-center justify-between px-6">
+                <span style={{ color: "#9ca3af" }}>Status</span>
+                <span
+                  style={{
+                    color:
+                      transactionStatus === "Succeeded" ? "#22c55e" : "#ef4444",
+                  }}
+                >
+                  {transactionStatus}
+                </span>
+              </div>
+
+              <div className="flex h-16 items-center justify-between px-6">
+                <span style={{ color: "#9ca3af" }}>Amount</span>
+                <span className="font-semibold" style={{ color: "#ffffff" }}>
+                  {parseFloat(convertedAmounts.token).toFixed(6)}{" "}
+                  {selectedToken?.symbol}
+                </span>
+              </div>
+
+              <div className="flex h-16 items-center justify-between px-6">
+                <span style={{ color: "#9ca3af" }}>USD Value</span>
+                <span className="font-semibold" style={{ color: "#ffffff" }}>
+                  ${parseFloat(convertedAmounts.usd).toFixed(2)}
+                </span>
+              </div>
+
+              <div className="flex h-16 items-center justify-between px-6">
+                <span style={{ color: "#9ca3af" }}>From</span>
+                <span className="font-semibold" style={{ color: "#ffffff" }}>
+                  My Wallet
+                </span>
+              </div>
+
+              <div className="flex h-16 items-center justify-between px-6">
+                <span style={{ color: "#9ca3af" }}>To</span>
+                <span className="font-semibold" style={{ color: "#ffffff" }}>
+                  {selectedRecipient?.name ?? "Custom Account"} (
+                  {selectedRecipient?.accountNumber})
+                </span>
+              </div>
+
+              <div className="flex h-16 items-center justify-between px-6">
+                <span style={{ color: "#9ca3af" }}>Network</span>
+                <span className="font-semibold" style={{ color: "#ffffff" }}>
+                  {selectedToken?.name ?? "Ethereum"}
+                </span>
+              </div>
+
+              <div className="flex h-16 items-center justify-between px-6">
+                <span style={{ color: "#9ca3af" }}>Hash</span>
+                <span
+                  className="max-w-[200px] truncate font-semibold"
+                  style={{ color: "#ffffff" }}
+                >
+                  {transactionHash}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="mt-auto flex flex-col gap-3 p-6">
+            <button
+              onClick={() => router.push(`/transactions`)}
+              className="block w-full rounded-full py-4 text-center font-medium"
+              style={{ backgroundColor: "#4f46e5", color: "#ffffff" }}
+            >
+              View All Transactions
+            </button>
+            <button
+              onClick={handleShareTransaction}
+              className="flex w-full items-center justify-center gap-2 rounded-full py-4 text-center font-medium"
+              style={{ backgroundColor: "#262626", color: "#ffffff" }}
+            >
+              <IconShare size={18} />
+              Share as Image
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default SendMoney;
+export default SendAsset;

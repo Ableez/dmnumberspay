@@ -51,3 +51,4 @@ yarn-error.log*
 # contracts
 # Rust's output directory
 target
+.stellar

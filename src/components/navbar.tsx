@@ -29,37 +29,88 @@ const PAGE_TITLES: Record<string, string> = {
   "/profile": "Profile",
   "/crypto/buy": "Buy",
   "/transactions": "Transactions",
+  "/transactions(/.*)?": "Transactions",
   // ...
 };
 
-const RIGHT_ICONS: Record<string, { bell?: boolean; settings?: boolean }> = {
-  "/": { bell: true, settings: true },
-  "/send": { bell: true },
-  "/receive": { bell: true },
-  "/settings": { bell: true },
-  "/profile": { settings: true },
-  "/crypto/buy": { bell: true },
-  "/transactions": { bell: true, settings: true },
+const RIGHT_ICONS: Array<{
+  pattern: RegExp;
+  config: { bell?: boolean; settings?: boolean };
+}> = [
+  { pattern: /^\/$/, config: { bell: true, settings: true } },
+  { pattern: /^\/send$/, config: { bell: false } },
+  { pattern: /^\/receive$/, config: { bell: true } },
+  { pattern: /^\/settings$/, config: { bell: true } },
+  { pattern: /^\/profile$/, config: { settings: true } },
+  { pattern: /^\/crypto\/buy$/, config: { bell: true } },
+  {
+    pattern: /^\/transactions(\/.*)?$/,
+    config: { bell: true, settings: true },
+  },
+];
+
+// Routes that should show back button instead of profile avatar
+const BACK_BUTTON_ROUTES = ["/account"];
+
+const SHOW_TITLE_ROUTES: Record<
+  string,
+  { searchbar?: boolean; title?: string }
+> = {
+  "/account": { searchbar: false, title: "Manage Profile" },
+  "/send": { searchbar: false, title: "Send" },
 };
 
 const MainNavbar = () => {
   const pathname = usePathname();
+  const router = useRouter();
 
-  
+  const shouldShowBackButton = BACK_BUTTON_ROUTES.some((route) =>
+    pathname.startsWith(route),
+  );
 
-  const rightIcons = RIGHT_ICONS[pathname] ?? {
+  const rightIcons = RIGHT_ICONS.find((item) => item.pattern.test(pathname))
+    ?.config ?? {
     bell: false,
     settings: false,
   };
 
+  const showTitle = SHOW_TITLE_ROUTES[pathname]?.title ?? false;
+  const showSearchbar = SHOW_TITLE_ROUTES[pathname]?.searchbar ?? false;
+
+  const handleBackClick = () => {
+    router.back();
+  };
+
   return (
-    <nav className="fixed top-0 z-[999999] flex w-full items-center justify-between gap-6 p-3 px-4">
+    <nav
+      className={`${showTitle || showSearchbar ? "bg-gradient-to-b from-black to-black/70 backdrop-blur-md" : ""} fixed top-0 z-[999999] flex w-full items-center justify-between gap-6 p-4 px-4`}
+    >
       <div className="flex items-center gap-2">
-        <Avatar>
-          <AvatarImage src="https://github.com/shadcn.png" />
-          <AvatarFallback>CN</AvatarFallback>
-        </Avatar>
+        {shouldShowBackButton ? (
+          <button
+            onClick={handleBackClick}
+            className="flex h-11 w-11 cursor-pointer place-items-center justify-center rounded-full align-middle transition-all duration-300 ease-in-out hover:scale-[0.98] hover:bg-white/5"
+          >
+            <IconArrowLeft size={24} />
+          </button>
+        ) : (
+          <Avatar>
+            <AvatarImage src="https://github.com/shadcn.png" />
+            <AvatarFallback>CN</AvatarFallback>
+          </Avatar>
+        )}
       </div>
+
+      {/* this is where there will page title or searchbar also can be toggled based on route */}
+      {showTitle && (
+        <div
+          className={
+            "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+          }
+        >
+          <h4 className={"text-2xl font-bold text-white"}>{showTitle}</h4>
+        </div>
+      )}
 
       <div className="flex items-center justify-between gap-2 align-middle">
         {rightIcons.settings && (

@@ -1,3 +1,4 @@
+/* eslint-disable drizzle/enforce-delete-with-where */
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 
