@@ -7,7 +7,7 @@ type Props = {
   className?: string;
 };
 
-const Logo = ({ size = 44, type = "white", className }: Props) => {
+const Logo = ({ size = 56, type = "white", className }: Props) => {
   const getFillColor = () => {
     switch (type) {
       case "black":

@@ -4,7 +4,7 @@ import React from "react";
 
 const MainLayout = ({ children }: React.PropsWithChildren) => {
   return (
-    <main className={""}>
+    <main className={""}> 
       <MainNavbar />
       <div className="pb-10">{children}</div>
       <BottomNav />

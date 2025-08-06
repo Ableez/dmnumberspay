@@ -1,6 +1,6 @@
+import { IconLoader2 } from "@tabler/icons-react";
 import { Suspense } from "react";
 import { LoginForm } from "../_components/login-form";
-import { IconLoader2 } from "@tabler/icons-react";
 
 export default function LoginPage() {
   return (

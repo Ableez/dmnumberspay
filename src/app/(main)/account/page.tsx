@@ -3,6 +3,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { ChevronRight, Globe } from "lucide-react";
 import LogoutBtn from "./_component/logout-btn";
+import PushNotificationManager from "#/lib/push-notification";
+import InstallPrompt from "#/lib/pwa-install-comp";
 
 const AccountPage = () => {
   return (
@@ -94,6 +96,9 @@ const AccountPage = () => {
               <ChevronRight size={18} className={"text-white/20"} />
             </div>
           </Link>
+          <PushNotificationManager />
+      <InstallPrompt />
+
         </div>
       </div>
 

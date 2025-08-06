@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import CreatePasskey from "./_screens/create-passkey";
 import PhoneOTP from "./_screens/phone-otp";
 import CreatePin from "./_screens/create-pin";
 import SetUsername from "./_screens/set-username";
@@ -11,7 +10,6 @@ const STEPS = [
   { id: 0, Component: PhoneOTP },
   { id: 1, Component: CreatePin },
   { id: 2, Component: SetUsername },
-  { id: 3, Component: CreatePasskey },
 ];
 
 const OnboardPage = () => {

@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 "use server";
 
 import webpush from "web-push";
@@ -33,17 +31,11 @@ export async function sendNotification(message: string) {
 
   try {
     await webpush.sendNotification(
-      {
-        ...subscription,
-        keys: {
-          p256dh: "",
-          auth: "",
-        },
-      },
+      subscription,
       JSON.stringify({
         title: "Test Notification",
         body: message,
-        icon: "/icon.png",
+        icon: "/icons/256.png",
       }),
     );
     return { success: true };

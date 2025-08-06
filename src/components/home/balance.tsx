@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { Button } from "../ui/button";
 import {
   DropdownMenu,
@@ -8,137 +8,124 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { IconCaretDown, IconWallet } from "@tabler/icons-react";
+import { IconCaretDown } from "@tabler/icons-react";
+import { toast } from "sonner";
 
-type StableCoinCode = "USDT" | "USDC" | "DAI" | "BUSD";
+interface WalletBalanceData {
+  walletId: string;
+  address: string;
+  balances: {
+    asset_type: string;
+    balance: string;
+  }[];
+}
 
-type StableCoinBalance = {
-  code: StableCoinCode;
-  symbol: string;
-  amount: number;
-  locale: string;
-  name: string;
+interface ShowBalanceProps {
+  walletBalances: WalletBalanceData[];
+}
+
+const COIN_SYMBOLS: Record<string, string> = {
+  native: "✹",
+  USDT: "₮",
+  USDC: "＄",
 };
 
-const stableCoinBalances: ReadonlyArray<StableCoinBalance> = [
-  {
-    code: "USDT",
-    symbol: "₮",
-    amount: 1250.75,
-    locale: "en-US",
-    name: "Tether",
-  },
-  {
-    code: "USDC",
-    symbol: "＄",
-    amount: 985.50,
-    locale: "en-US",
-    name: "USD Coin",
-  },
-  { code: "DAI", symbol: "◈", amount: 325.25, locale: "en-US", name: "Dai" },
-  {
-    code: "BUSD",
-    symbol: "฿",
-    amount: 750.80,
-    locale: "en-US",
-    name: "Binance USD",
-  },
-];
-
-const DEFAULT_CURRENCY: StableCoinCode = "USDT";
-
-// Mock conversion rates as of June 2024 (approximate, for demo purposes)
-const NAIRA_CONVERSION_RATES: Record<StableCoinCode, number> = {
-  USDT: 1480,
-  USDC: 1475,
-  DAI: 1460,
-  BUSD: 1450,
+// Helper function to truncate wallet address
+const truncateAddress = (address: string): string => {
+  if (!address) return "";
+  return `${address.substring(0, 4)}...${address.substring(address.length - 4)}`;
 };
 
-const convertToNaira = (code: StableCoinCode, amount: number): number => {
-  const rate = NAIRA_CONVERSION_RATES[code];
-  return amount * rate;
+// Helper function to format numbers with commas
+const formatNumberWithCommas = (value: number | string): string => {
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2
+  }).format(typeof value === 'string' ? parseFloat(value) : value);
 };
 
-const ShowBalance: React.FC = () => {
-  const [selectedCurrency, setSelectedCurrency] =
-    useState<StableCoinCode>(DEFAULT_CURRENCY);
+const ShowBalance: React.FC<ShowBalanceProps> = ({ walletBalances }) => {
+  const [selectedWalletIndex, setSelectedWalletIndex] = useState(0);
 
-  const selectedBalance = useMemo<StableCoinBalance | undefined>(
-    () => stableCoinBalances.find((b) => b.code === selectedCurrency),
-    [selectedCurrency],
-  );
+  // Check if we have any wallets with balances
+  if (!walletBalances || walletBalances.length === 0) {
+    return (
+      <div className="flex w-full flex-col items-center justify-center rounded-xl p-6 shadow-lg">
+        <div className="text-white">No wallet balances available</div>
+      </div>
+    );
+  }
 
-  const nairaEquivalent = useMemo<number | null>(() => {
-    if (!selectedBalance) return null;
-    return convertToNaira(selectedBalance.code, selectedBalance.amount);
-  }, [selectedBalance]);
+  const selectedWallet =
+    walletBalances[selectedWalletIndex] ?? walletBalances[0]!;
+  const nativeBalance =
+    selectedWallet.balances?.find((b) => b.asset_type === "native")?.balance ??
+    "0";
+
+  // Get truncated address
+  const truncatedAddress = truncateAddress(selectedWallet.address);
+  
+  // Format the XLM balance
+  const formattedXLM = formatNumberWithCommas(nativeBalance);
+  
+  // Calculate and format the NGN equivalent
+  const ngnValue = parseFloat(nativeBalance) * 1480 * 0.11;
+  const formattedNGN = formatNumberWithCommas(ngnValue);
 
   return (
-    <div className="flex h-[40dvh] w-full flex-col items-center justify-center rounded-xl bg-gradient-to-b from-[#410D8C] via-[#410D8C66] to-transparent shadow-lg p-6">
+    <div className="flex w-full flex-col items-center justify-center p-6 shadow-lg">
       <div className="flex flex-col items-center gap-3">
-        {selectedBalance && (
-          <h4 className="text-center text-4xl font-bold text-white">
-            {selectedBalance.symbol}
-            {selectedBalance.amount.toLocaleString(selectedBalance.locale, {
-              style: "decimal",
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </h4>
-        )}
-        
-        <div className="text-center text-sm text-green-400 mb-3 font-semibold">
-          {nairaEquivalent !== null
-            ? `₦${nairaEquivalent.toLocaleString("en-NG", {
-                style: "decimal",
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })} NGN`
-            : "--"}
+        <h4 className="text-center text-4xl font-bold text-white flex items-start gap-1">
+          {COIN_SYMBOLS.native} {formattedXLM} <span className={"text-sm"}>XLM</span>
+        </h4>
+
+        <div className="mb-3 text-center text-sm font-semibold text-green-400">
+          ₦{formattedNGN} NGN
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              className="min-w-[140px] flex items-center justify-between bg-white/5 border-white/10 text-white hover:bg-white/10"
-              aria-label="Select stablecoin"
-            >
-              <span className="flex items-center">
-                <span className="mr-2">{selectedBalance?.symbol}</span>
-                {selectedBalance?.code}
-              </span>
-              <IconCaretDown size={16} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="center" className="min-w-[180px] bg-slate-800 border-slate-700">
-            {stableCoinBalances.map((balance) => (
-              <DropdownMenuItem
-                key={balance.code}
-                onSelect={() => setSelectedCurrency(balance.code)}
-                className={`${
-                  balance.code === selectedCurrency
-                    ? "bg-white/10 font-medium"
-                    : ""
-                } flex items-center justify-between py-2 cursor-pointer hover:bg-white/5`}
-                aria-selected={balance.code === selectedCurrency}
+        <button
+          onClick={() => {
+            void navigator.clipboard.writeText(selectedWallet.address);
+            toast.success("Copied to clipboard");
+          }}
+          className="mb-2 cursor-pointer rounded-full bg-white/10 px-4 py-1.5 text-sm text-white/70 duration-300 ease-in-out hover:bg-white/20"
+        >
+          {truncatedAddress}
+        </button>
+
+        {walletBalances.length > 1 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="flex min-w-[140px] items-center justify-between border-white/10 bg-white/5 text-white hover:bg-white/10"
               >
-                <div className="flex items-center">
-                  <span className="mr-2 text-lg">{balance.symbol}</span>
-                  <span>{balance.code}</span>
-                </div>
-                <span className="text-xs text-white/60">
-                  {balance.amount.toLocaleString(balance.locale, {
-                    style: "decimal",
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-                </span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <span>{truncatedAddress}</span>
+                <IconCaretDown size={16} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="center"
+              className="min-w-[180px] border-slate-700 bg-slate-800"
+            >
+              {walletBalances.map((wallet, index) => (
+                <DropdownMenuItem
+                  key={wallet.walletId}
+                  onSelect={() => setSelectedWalletIndex(index)}
+                  className={`${
+                    index === selectedWalletIndex
+                      ? "bg-white/10 font-medium"
+                      : ""
+                  } flex cursor-pointer items-center justify-between py-2 hover:bg-white/5`}
+                >
+                  <div className="flex items-center">
+                    <span>{truncateAddress(wallet.address)}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </div>
   );

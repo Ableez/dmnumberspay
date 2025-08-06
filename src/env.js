@@ -17,6 +17,12 @@ export const env = createEnv({
     PRIVATE_MERCURY_JWT: z.string(),
     PRIVATE_FUNDER_SECRET_KEY: z.string(),
     VAPID_PRIVATE_KEY: z.string(),
+    NEW_STELLAR_SK: z.string(),
+    DFNS_PRIVATE_KEY: z.string(),
+    DFNS_CRED_ID: z.string(),
+    DFNS_ORG_ID: z.string(),
+    DFNS_AUTH_TOKEN: z.string(),
+    DFNS_API_URL: z.string(),
   },
 
   /**
@@ -76,6 +82,13 @@ export const env = createEnv({
     NEXT_PUBLIC_LAUNCHTUBE_URL: process.env.NEXT_PUBLIC_LAUNCHTUBE_URL,
     NEXT_PUBLIC_MERCURY_URL: process.env.NEXT_PUBLIC_MERCURY_URL,
     NEXT_PUBLIC_FUNDER_PUBLIC_KEY: process.env.NEXT_PUBLIC_FUNDER_PUBLIC_KEY,
+
+    NEW_STELLAR_SK: process.env.NEW_STELLAR_SK,
+    DFNS_PRIVATE_KEY: process.env.DFNS_PRIVATE_KEY,
+    DFNS_CRED_ID: process.env.DFNS_CRED_ID,
+    DFNS_ORG_ID: process.env.DFNS_ORG_ID,
+    DFNS_AUTH_TOKEN: process.env.DFNS_AUTH_TOKEN,
+    DFNS_API_URL: process.env.DFNS_AUTH_TOKEN,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

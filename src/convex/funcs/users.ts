@@ -1,3 +1,4 @@
+/* eslint-disable drizzle/enforce-delete-with-where */
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 
@@ -5,19 +6,18 @@ import { v } from "convex/values";
 export const createUser = mutation({
   args: {
     name: v.string(),
+    email: v.string(),
     phoneNumber: v.string(),
-    countryCode: v.string(),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
     const userId = await ctx.db.insert("users", {
       name: args.name,
+      email: args.email,
       phoneNumber: args.phoneNumber,
-      countryCode: args.countryCode,
       createdAt: now,
       updatedAt: now,
     });
-
     return ctx.db.get(userId);
   },
 });
@@ -47,6 +47,7 @@ export const updateUser = mutation({
   args: {
     userId: v.id("users"),
     name: v.optional(v.string()),
+    email: v.optional(v.string()),
     phoneNumber: v.optional(v.string()),
     countryCode: v.optional(v.string()),
   },

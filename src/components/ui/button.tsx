@@ -12,7 +12,7 @@ const buttonVariants = cva(
         default:
           "bg-neutral-900 text-neutral-50 shadow-xs hover:bg-neutral-900/90 dark:bg-neutral-50 dark:text-neutral-900 dark:hover:bg-neutral-50/90",
         primary:
-          "bg-primary text-white shadow-xs hover:bg-primary/90 dark:bg-primary dark:text-white dark:hover:bg-primary/80",
+          "bg-indigo-600 text-white shadow-xs hover:bg-indigo-600/90 dark:bg-indigo-600 dark:text-white dark:hover:bg-indigo-600/80",
         destructive:
           "bg-red-500 text-white shadow-xs hover:bg-red-500/90 focus-visible:ring-red-500/20 dark:focus-visible:ring-red-500/40 dark:bg-red-500/60 dark:bg-red-900 dark:hover:bg-red-900/90 dark:focus-visible:ring-red-900/20 dark:dark:focus-visible:ring-red-900/40 dark:dark:bg-red-900/60",
         outline:
@@ -20,7 +20,7 @@ const buttonVariants = cva(
         secondary:
           "bg-neutral-100 text-neutral-900 shadow-xs hover:bg-neutral-100/80 dark:bg-neutral-800 dark:text-neutral-50 dark:hover:bg-neutral-800/80",
         ghost:
-          "hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-100/50 dark:hover:bg-neutral-800 dark:hover:text-neutral-50 dark:dark:hover:bg-neutral-800/50",
+          "hover:bg-neutral-100 hover:text-neutral-900 dark:hover:bg-neutral-100/50 dark:hover:bg-neutral-800 dark:hover:text-neutral-50 dark:hover:bg-neutral-800/50 bg-white/5",
         faded:
           "hover:bg-neutral-100/10 bg-white/10 backdrop-blur-sm hover:text-neutral-200 dark:hover:bg-neutral-100/10 dark:hover:bg-neutral-800/10 dark:hover:text-neutral-50 dark:dark:hover:bg-neutral-800/50",
         link: "text-neutral-900 underline-offset-4 hover:underline dark:text-neutral-50",

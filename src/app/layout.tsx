@@ -5,6 +5,7 @@ import { Geist } from "next/font/google";
 import { TRPCReactProvider } from "../trpc/react";
 import { ThemeProvider } from "#/components/theme-provider";
 import { ConvexClientProvider } from "../lib/convex-client-provider";
+import { Toaster } from "#/components/ui/sonner";
 
 export const metadata: Metadata = {
   title: "NumbersPay",
@@ -33,7 +34,10 @@ const RootLayout: React.FC<RootLayoutProps> = ({ children }) => (
           enableSystem={false}
           forcedTheme="dark"
         >
-          <ConvexClientProvider>{children}</ConvexClientProvider>
+          <ConvexClientProvider>
+            {children}
+            <Toaster />
+          </ConvexClientProvider>
         </ThemeProvider>
       </TRPCReactProvider>
     </body>

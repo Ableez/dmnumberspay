@@ -1,3 +1,4 @@
+/* eslint-disable drizzle/enforce-delete-with-where */
 import { mutation, query } from "../_generated/server";
 import { v } from "convex/values";
 
@@ -8,6 +9,7 @@ export const createPasskey = mutation({
     walletId: v.id("wallets"),
     passkeyId: v.string(),
     publicKey: v.string(),
+    credentialId: v.string(),
   },
   handler: async (ctx, args) => {
     // Verify user and wallet exist
@@ -23,6 +25,7 @@ export const createPasskey = mutation({
       walletId: args.walletId,
       passkeyId: args.passkeyId,
       publicKey: args.publicKey,
+      credentialId: args.credentialId,
       createdAt: Date.now(),
     });
 
