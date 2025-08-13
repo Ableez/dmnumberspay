@@ -9,6 +9,8 @@ import { createSession, deleteSession } from "#/lib/auth/session";
 import { createWallet } from "./wallet-actions";
 import { createCustodialWallet } from "./create-wallet-exp";
 import { fetchMutation } from "convex/nextjs";
+import { privyClient } from "#/lib/privy-client";
+import { Test_POLICY_ID } from "#/lib/CONSTANTS/privy-policies";
 
 // Initialize Convex client
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
@@ -179,7 +181,10 @@ export const createUserInDB = async (phoneNumber?: string) => {
     throw new Error("Failed to create or retrieve user");
   }
 };
-
+/**
+ * @deprecated This function uses the old wallet creation flow and should not be used.
+ * Use the new wallet creation flow with Privy - createPrivyWalletForUser() instead.
+ */
 export const createWalletForUser = async (
   userId: string,
   passkeyBase64: string,
@@ -202,5 +207,46 @@ export const createWalletForUser = async (
   } catch (error) {
     console.error("Error creating wallet:", error);
     throw new Error("Failed to create wallet");
+  }
+};
+
+// export const createPrivyUser = async ({
+//   convexUserId,
+//   email,
+//   phoneNumber,
+//   username,
+// }: {
+//   convexUserId: string;
+//   email: string;
+//   username: string;
+//   phoneNumber: string;
+// }) => {
+//   try {
+//     await privyClient.importUser({
+//       linkedAccounts: [
+//         {
+//           type: "email",
+//           address: "batman@privy.io",
+//         },
+//       ],
+//       wallets: [{ chainType: "ethereum", policyIds: [Test_POLICY_ID] }],
+//       customMetadata: {
+//         convexUserId,
+//         email,
+//         username,
+//         phoneNumber,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("ERROR CREATING PRIVY USER: ", error);
+
+//     throw new Error("Failed to create or retrieve user");
+//   }
+// };
+
+export const createPrivyWalletForUser = async () => {
+  try {
+  } catch (error) {
+    console.error("ERROR CREATING PRIVY WALLET: ", error);
   }
 };

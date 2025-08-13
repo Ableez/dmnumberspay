@@ -23,6 +23,7 @@ export const env = createEnv({
     DFNS_ORG_ID: z.string(),
     DFNS_AUTH_TOKEN: z.string(),
     DFNS_API_URL: z.string(),
+    PRIVY_SECRET_KEY: z.string(),
   },
 
   /**
@@ -46,6 +47,8 @@ export const env = createEnv({
     NEXT_PUBLIC_LAUNCHTUBE_URL: z.string(),
     NEXT_PUBLIC_MERCURY_URL: z.string(),
     NEXT_PUBLIC_FUNDER_PUBLIC_KEY: z.string(),
+    NEXT_PUBLIC_PRIVY_APP_ID: z.string(),
+    NEXT_PUBLIC_PRIVY_CLIENT_ID: z.string(),
   },
 
   /**
@@ -61,7 +64,6 @@ export const env = createEnv({
     PRIVATE_MERCURY_JWT: process.env.PRIVATE_MERCURY_JWT,
     PRIVATE_FUNDER_SECRET_KEY: process.env.PRIVATE_FUNDER_SECRET_KEY,
     VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
-
     NEXT_PUBLIC_STELLAR_RPC_URL: process.env.NEXT_PUBLIC_STELLAR_RPC_URL,
     NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE:
       process.env.NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE,
@@ -82,13 +84,15 @@ export const env = createEnv({
     NEXT_PUBLIC_LAUNCHTUBE_URL: process.env.NEXT_PUBLIC_LAUNCHTUBE_URL,
     NEXT_PUBLIC_MERCURY_URL: process.env.NEXT_PUBLIC_MERCURY_URL,
     NEXT_PUBLIC_FUNDER_PUBLIC_KEY: process.env.NEXT_PUBLIC_FUNDER_PUBLIC_KEY,
-
     NEW_STELLAR_SK: process.env.NEW_STELLAR_SK,
     DFNS_PRIVATE_KEY: process.env.DFNS_PRIVATE_KEY,
     DFNS_CRED_ID: process.env.DFNS_CRED_ID,
     DFNS_ORG_ID: process.env.DFNS_ORG_ID,
     DFNS_AUTH_TOKEN: process.env.DFNS_AUTH_TOKEN,
     DFNS_API_URL: process.env.DFNS_AUTH_TOKEN,
+    NEXT_PUBLIC_PRIVY_APP_ID: process.env.NEXT_PUBLIC_PRIVY_APP_ID,
+    NEXT_PUBLIC_PRIVY_CLIENT_ID: process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID,
+    PRIVY_SECRET_KEY: process.env.PRIVY_SECRET_KEY,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
