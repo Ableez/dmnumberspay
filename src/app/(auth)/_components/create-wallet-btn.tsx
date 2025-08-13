@@ -4,7 +4,6 @@ import { Button } from "#/components/ui/button";
 import {
   authenticateUser,
   createUserInDB,
-  createWalletForUser,
 } from "#/server/actions/user-actions";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -15,6 +14,7 @@ import {
 } from "@simplewebauthn/browser";
 import { useRouter } from "next/navigation";
 import { IconLoader } from "@tabler/icons-react";
+import { useCreateWallet, type Wallet } from "@privy-io/react-auth";
 
 type Stage =
   | "creating_passkey"
@@ -31,6 +31,15 @@ export function CreateWalletButton({
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  const { createWallet: createPrivyWallet } = useCreateWallet({
+    onSuccess: (wallet) => {
+      console.log("CREATED PRIVATE WALLET", wallet);
+    },
+    onError: (error) => {
+      console.error("ERROR CREATING PRIVATE WALLET", error);
+    },
+  });
 
   const generatePasskey = async (): Promise<{
     signature: Buffer<ArrayBuffer>;
@@ -101,21 +110,31 @@ export function CreateWalletButton({
 
           const signatureBuffer = Buffer.from(passkey.signature);
 
+          console.log("SIGNATURE BUFFER", signatureBuffer);
+
           setStage("creating_wallet");
-          await createWalletForUser(
-            newUser._id,
-            signatureBuffer.toString("base64"),
-            passkey.credentialId,
-          );
 
-          await authenticateUser({ userId: newUser._id });
-          setStage("prepping_onboard");
+          // DEPRECATED Stellar wallets
+          // await createWalletForUser(
+          //   newUser._id,
+          //   signatureBuffer.toString("base64"),
+          //   passkey.credentialId,
+          // );
 
-          setTimeout(() => {
-            router.push("/onboard");
-          }, 1300);
+          
 
-          setStage("wallet_created");
+          const newWallet = await createPrivyWallet();
+
+          console.log("NEW WALLET", newWallet);
+
+          // await authenticateUser({ userId: newUser._id });
+          setStage("idle");
+
+          // setTimeout(() => {
+          //   router.push("/onboard");
+          // }, 1300);
+
+          // setStage("wallet_created");
           toast.success("Wallet created successfully");
         } catch (error) {
           toast.error("Error creating wallet");

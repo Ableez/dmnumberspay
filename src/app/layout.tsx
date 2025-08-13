@@ -6,6 +6,7 @@ import { TRPCReactProvider } from "../trpc/react";
 import { ThemeProvider } from "#/components/theme-provider";
 import { ConvexClientProvider } from "../lib/convex-client-provider";
 import { Toaster } from "#/components/ui/sonner";
+import WalletProvider from "#/lib/wallet-provider";
 
 export const metadata: Metadata = {
   title: "NumbersPay",
@@ -35,7 +36,7 @@ const RootLayout: React.FC<RootLayoutProps> = ({ children }) => (
           forcedTheme="dark"
         >
           <ConvexClientProvider>
-            {children}
+            <WalletProvider>{children}</WalletProvider>
             <Toaster />
           </ConvexClientProvider>
         </ThemeProvider>

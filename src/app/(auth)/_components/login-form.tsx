@@ -14,6 +14,10 @@ import {
 } from "@tabler/icons-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import { useLogin } from "@privy-io/react-auth";
+import { useLoginWithEmail } from "@privy-io/react-auth";
+import { Button } from "#/components/ui/button";
+import { toast } from "sonner";
 
 type Stage =
   | "creating_passkey"
@@ -26,7 +30,17 @@ type Stage =
 type LoginFormProps = React.ComponentPropsWithoutRef<"div">;
 
 export function LoginForm({ className, ...props }: LoginFormProps) {
-  const [stage, setStage] = useState<Stage>("prepping_onboard");
+  const [stage, setStage] = useState<Stage>("idle");
+  const [loginStatus, setLoginStatus] = useState<"idle" | "loading" | "error">(
+    "idle",
+  );
+  const { login } = useLogin({
+    onComplete: (data) => {
+      console.log("Login complete");
+      console.log("ANY DATA => ", data);
+    },
+  });
+
 
   const renderLoadingState = (message: string) => (
     <motion.div
@@ -146,96 +160,106 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
       )}
 
       <AnimatePresence mode="wait">
-        {stage === "creating_passkey" &&
-          renderLoadingState("Creating passkey...")}
-
-        {stage === "creating_user_data" &&
-          renderLoadingState("Creating user data...")}
-
-        {stage === "creating_wallet" &&
-          renderLoadingState("Creating wallet...")}
-
-        {stage === "wallet_created" && renderLoadingState("Lets continue!...")}
-        {stage === "prepping_onboard" &&
-          renderLoadingState("Lets set you up!...")}
-
-        {stage === "idle" && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3 }}
-            className="grid h-full min-h-[60dvh] flex-col items-center justify-between gap-6 md:min-h-[50dvh]"
-          >
-            <div className="row-span-6 flex h-full flex-col place-items-center justify-center gap-4">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2, duration: 0.4 }}
-                className="flex flex-col items-center text-center text-4xl font-bold md:text-5xl md:font-semibold"
-              >
-                <motion.h4
-                  initial={{ y: 10, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  Your Crypto.
-                </motion.h4>
-                <motion.h4
-                  initial={{ y: 10, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                >
-                  Your Number.
-                </motion.h4>
-              </motion.div>
-
-              <motion.h4
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.6 }}
-                transition={{ delay: 0.7, duration: 0.4 }}
-                className="px-4 text-center"
-              >
-                Create a new wallet with your phone number, or login with your
-                existing wallet.
-              </motion.h4>
-            </div>
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.8, duration: 0.4 }}
-              className="flex flex-col place-items-center justify-center gap-4"
-            >
-              <CreateWalletButton
-                setStage={(stage: Stage) => setStage(stage)}
-              />
-              <LoginWalletButton
-                isLoading={false}
-                isRedirecting={false}
-                disabled={false}
-                text="I already have a wallet"
-              />
-            </motion.div>
-
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.3 }}
+          className="grid h-full min-h-[60dvh] flex-col items-center justify-between gap-6 md:min-h-[50dvh]"
+        >
+          <div className="row-span-6 flex h-full flex-col place-items-center justify-center gap-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 1, duration: 0.4 }}
-              className="text-center text-xs md:text-sm"
+              transition={{ delay: 0.2, duration: 0.4 }}
+              className="flex flex-col items-center text-center text-4xl font-bold md:text-5xl md:font-semibold"
             >
-              <h4 className="opacity-60">
-                By using Numberspay, you agree to accept our
-              </h4>
-              <a className="font-bold opacity-80" href="/terms-of-use">
-                Terms of Use
-              </a>{" "}
-              <span className="opacity-60">and </span>
-              <a className="font-bold opacity-80" href="/privacy-policy">
-                Privacy Policy
-              </a>
+              <motion.h4
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+              >
+                Your Crypto.
+              </motion.h4>
+              <motion.h4
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+              >
+                Your Number.
+              </motion.h4>
             </motion.div>
+
+            <motion.h4
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              transition={{ delay: 0.7, duration: 0.4 }}
+              className="my-2 px-4 text-center"
+            >
+              Create a new wallet with your phone number, or login with your
+              existing wallet.
+            </motion.h4>
+          </div>
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.8, duration: 0.4 }}
+            className="flex flex-col place-items-center justify-center gap-4"
+          >
+            <Button
+              className="relative w-full"
+              variant={"primary"}
+              onClick={async () => {
+                try {
+                  setLoginStatus("loading");
+                  await login();
+                  toast.success("Login successful");
+                } catch (error) {
+                  console.error("Error logging in with passkey", error);
+                  setLoginStatus("error");
+                  toast.error("Login failed");
+                } finally {
+                  setLoginStatus("idle");
+                }
+              }}
+            >
+              {loginStatus === "loading" ? (
+                <span className="flex items-center justify-center">
+                  <span className="loading loading-dots loading-sm">
+                    <IconLoader className="animate-spin" size={20} />
+                  </span>
+                </span>
+              ) : (
+                "Create a new wallet"
+              )}
+            </Button>
+            <LoginWalletButton
+              isLoading={false}
+              isRedirecting={false}
+              disabled={false}
+              text="I already have a wallet"
+            />
           </motion.div>
-        )}
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1, duration: 0.4 }}
+            className="text-center text-xs md:text-sm"
+          >
+            <h4 className="opacity-60">
+              By using Numberspay, you agree to accept our
+            </h4>
+            <a className="font-bold opacity-80" href="/terms-of-use">
+              Terms of Use
+            </a>{" "}
+            <span className="opacity-60">and </span>
+            <a className="font-bold opacity-80" href="/privacy-policy">
+              Privacy Policy
+            </a>
+          </motion.div>
+        </motion.div>
+        {/* )} */}
       </AnimatePresence>
     </div>
   );

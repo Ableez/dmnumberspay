@@ -14,6 +14,8 @@ import type { Id } from "#/convex/_generated/dataModel";
 
 const secretKey = process.env.SESSION_SECRET;
 const encodedKey = new TextEncoder().encode(secretKey);
+import {getAccessToken} from '@privy-io/react-auth';
+
 
 // Session duration in days
 const SESSION_DURATION_DAYS = 0.2;
